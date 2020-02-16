@@ -1,3 +1,5 @@
+/*------- include files:
+-------------------------------------------------------------------*/
 #include <iostream>
 #include <sstream>
 #include "Statement.h"
@@ -9,8 +11,13 @@ namespace beesoft {
 namespace sqlite {
 using namespace std;
 
-
-
+/**
+ * @brief Statement::select
+ * SQL SELECT implementation
+ *
+ * @param query - query with SELECT to execute.
+ * @return vector of rows, where row is vector of fields (type Field).
+ */
 vector<vector<Field>> Statement::select(const string& query) {
     Result result;
 
