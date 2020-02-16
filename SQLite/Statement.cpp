@@ -50,9 +50,9 @@ vector<vector<Field>> Statement::select(const string& query) {
                 }
             }
         }
-    }
-    if (SQLITE_OK == sqlite3_finalize(stmt_)) {
-        return result;
+        if (SQLITE_OK == sqlite3_finalize(stmt_)) {
+            return result;
+        }
     }
     sqlite_.log_error();
     return Result();
