@@ -73,6 +73,14 @@ public:
     }
 
     // Getting values without checking.
+    template<std::integral T>
+    [[nodiscard]] T value() const noexcept {
+        return static_cast<T>(std::get<i64>(data_));
+    }
+    template<std::floating_point T>
+    [[nodiscard]] T value() const noexcept {
+        return static_cast<T>(std::get<f64>(data_));
+    }
     template<typename T>
     [[nodiscard]] T value() const noexcept {
         return std::get<T>(data_);
