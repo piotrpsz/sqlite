@@ -37,14 +37,13 @@ bool SQLite::close() noexcept {
             LOG_ERROR(db_);
             return {};
         }
-        sqlite3_free(db_);
         db_ = nullptr;
     }
     return true;
 }
 
 // Open database with given path.
-bool SQLite::open(std::string const& path, bool const read_only) noexcept {
+bool SQLite::open(std::string const& path, bool const expected_success, bool const read_only) noexcept {
     if (db_) {
         fmt::print(stderr, "Database is already opened!\n");
         return false;
@@ -59,8 +58,7 @@ bool SQLite::open(std::string const& path, bool const read_only) noexcept {
         fmt::print("database opened: {}\n", path);
         return true;
     }
-    LOG_ERROR(db_);
-    sqlite3_free(db_);
+    if (expected_success) LOG_ERROR(db_);
     db_ = nullptr;
     return {};
 }

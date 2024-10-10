@@ -59,7 +59,7 @@ public:
         return sqlite3_version;
     }
     bool close() noexcept;
-    bool open(std::string const& path, bool read_only = false) noexcept;
+    bool open(std::string const& path, bool expected_success = false, bool read_only = false) noexcept;
     bool create(std::string const&  path, std::function<bool(SQLite const&)> const& fn, bool overwrite = false) noexcept;
 
     //------- EXEC ----------

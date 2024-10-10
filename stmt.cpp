@@ -40,7 +40,6 @@ bool bind_at(sqlite3_stmt* stmt, int idx, Value const& v) noexcept;
 Stmt::~Stmt() {
     if (stmt_) {
         if (SQLITE_OK == sqlite3_finalize(stmt_)) {
-            sqlite3_free(stmt_);
             stmt_ = nullptr;
             return;
         }
@@ -54,7 +53,6 @@ bool Stmt::exec(Query const &query) {
             if (bind2stmt(stmt_, query.values())) {
                 if (SQLITE_DONE == sqlite3_step(stmt_)) {
                     if (SQLITE_OK == sqlite3_finalize(stmt_)) {
-                        sqlite3_free(stmt_);
                         stmt_ = nullptr;
                         return true;
                     }
@@ -87,7 +85,6 @@ std::optional<Result> Stmt::exec_with_result(Query const& query) {
 
     if (SQLITE_DONE == sqlite3_errcode(db_)) {
         if (SQLITE_OK == sqlite3_finalize(stmt_)) {
-            sqlite3_free(stmt_);
             stmt_ = nullptr;
             return std::move(result);
         }
