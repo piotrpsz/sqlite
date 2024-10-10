@@ -65,12 +65,11 @@ bool Stmt::exec(Query const &query) {
 }
 
 std::optional<Result> Stmt::exec_with_result(Query const& query) {
-    Result result{};
-
     if (!query.valid()) {
         return {};
     }
 
+    Result result{};
     if (SQLITE_OK == sqlite3_prepare_v2(db_, query.query().c_str(), -1, &stmt_, nullptr)) {
         if (bind2stmt(stmt_, query.values())) {
             if (auto n = sqlite3_column_count(stmt_)) {
