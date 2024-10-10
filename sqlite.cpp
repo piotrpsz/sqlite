@@ -37,6 +37,7 @@ bool SQLite::close() noexcept {
             LOG_ERROR(db_);
             return {};
         }
+        sqlite3_free(db_);
         db_ = nullptr;
     }
     return true;
@@ -59,6 +60,7 @@ bool SQLite::open(std::string const& path, bool const read_only) noexcept {
         return true;
     }
     LOG_ERROR(db_);
+    sqlite3_free(db_);
     db_ = nullptr;
     return {};
 }
