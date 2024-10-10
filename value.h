@@ -87,10 +87,10 @@ public:
     }
 
     template<typename T>
-    T value_if() const noexcept {
+    std::optional<T> value_if() const noexcept {
         if (auto ip = std::get_if<T>(&data_))
             return *ip;
-        return T();
+        return {};
     }
 
     [[nodiscard]] std::string to_string() const noexcept {

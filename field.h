@@ -41,6 +41,7 @@ public:
     Field& operator=(Field const&) = default;
     Field& operator=(Field&&) = default;
 
+    explicit Field(std::string name) : data_{std::move(name), {}} {}
     Field(std::string name, Value value) : data_{std::move(name), std::move(value)} {}
     explicit Field(std::pair<std::string, Value> data) : data_{std::move(data)} {}
 

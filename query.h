@@ -51,7 +51,7 @@ public:
     /// Query for name and arguments with fold-expression
     template<typename... T>
     explicit Query(std::string query, T... args) : query_{std::move(query)} {
-        (..., values_.push_back(value_t(args)));
+        (..., values_.push_back(Value(args)));
     }
 
     /// Check if query is valid. \n

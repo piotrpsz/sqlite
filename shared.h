@@ -27,9 +27,10 @@
 /*------- include files:
 -------------------------------------------------------------------*/
 #include "types.h"
+#include <span>
 #include <string>
 #include <optional>
-#include <span>
+#include <charconv>
 #include <fmt/core.h>
 #include <range/v3/all.hpp>
 
@@ -75,4 +76,29 @@ namespace shared {
                       | rng::to<std::vector>();
         return join(components, ',');
     }
+
+    static inline std::optional<int> to_int(std::string_view sv, int base = 10) {
+        int value{};
+        auto [_, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), value, base);
+
+        // Konwersja się udała.
+        if (ec == std::errc{})
+            return value;
+
+        // Coś poszło nie tak.
+        if (ec == std::errc::invalid_argument)
+            fmt::print(stderr, "This is not a number ({}).\n", sv);
+        else if (ec == std::errc::result_out_of_range)
+            fmt::print(stderr, "The number is to big ({}).\n", sv);
+        return {};
+    }
+
+    static inline std::string to_string(std::integral auto v) {
+        return std::to_string(static_cast<i64>(v));
+    }
+    static inline std::string to_string(std::floating_point auto v) {
+        return std::to_string(static_cast<f64>(v));
+    }
+
+
 }
