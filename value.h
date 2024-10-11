@@ -138,6 +138,13 @@ public:
         return {};
     }
 
+    bool operator==(Value const& rhs) const noexcept {
+        return (data_.index() == rhs.data_.index()) && (data_ == rhs.data_);
+    }
+    bool operator!=(Value const& rhs) const noexcept {
+        return !operator==(rhs);
+    }
+
     [[nodiscard]] std::string to_string() const noexcept {
         switch (data_.index()) {
             case MONOSTATE:
