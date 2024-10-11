@@ -30,7 +30,10 @@
 #include "shared.h"
 #include <variant>
 #include <optional>
+#include <span>
 #include <fmt/format.h>
+#include <range/v3/all.hpp>
+namespace rng = ranges;
 
 class Value {
     std::variant<std::monostate, i64, f64, std::string, std::vector<u8>> data_{};
@@ -38,13 +41,16 @@ public:
     enum { MONOSTATE, INTEGER, DOUBLE, STRING, VECTOR };
 
     Value() = default;
-    Value(std::integral auto v) : data_{static_cast<i64>(v)} {}
-    Value(std::floating_point auto v) : data_{static_cast<f64>(v)} {}
-    Value(std::string v) : data_{std::move(v)} {}
-    Value(std::vector<u8> v) : data_{std::move(v)} {}
     ~Value() = default;
 
-    // Special version of constructor for optional values.
+    // Constructors dedicated to acceptable value types
+    explicit Value(std::integral auto v) : data_{static_cast<i64>(v)} {}
+    explicit Value(std::floating_point auto v) : data_{static_cast<f64>(v)} {}
+    explicit Value(std::string v) : data_{std::move(v)} {}
+    explicit Value(std::vector<u8> v) : data_{std::move(v)} {}
+
+
+    /// Constructor dedicated to optional values
     template<typename T>
     explicit Value(std::optional<T> v) noexcept {
         if (v) data_ = v.value();
@@ -57,19 +63,57 @@ public:
     Value(Value&&) = default;
     Value& operator=(Value&&) = default;
 
-    auto operator()() && {
-        return std::move(data_);
-    }
-    auto& operator()() const& {
-        return data_;
-    }
-
+    /// Check if the object contains a specific value.
     [[nodiscard]] bool is_null() const noexcept {
         return data_.index() == MONOSTATE;
     }
 
+    /// Take the index of the contained value.
+    /// i.e. MONOSTATE, INTEGER, DOUBLE, STRING, VECTOR
     [[nodiscard]] uint index() const noexcept {
         return data_.index();
+    }
+
+    [[nodiscard]] std::vector<u8> serialize() const noexcept {
+        // Każde pole będzie rozpoczynać się literą ('marker') okresłającej typ wartości.
+        // 'M' - monostate, 'I' - integer, 'D' - double, 'S' - string, 'V' - vector.
+        // Następnie liczba u32 (4 bajty) określająca rozmiar wartości w bajtach.
+        // Do końca bajtowa reprezentacja wartości.
+        auto const data = value_to_bytes();
+        std::vector<u8> buffer(1 + sizeof(u32) + data.size());
+        u32 const nbytes = value_to_bytes().size();
+        buffer[0] = marker();
+        memcpy(&buffer[1], &nbytes, sizeof(u32));
+        memcpy(&buffer[1 + sizeof(u32)], data.data(), data.size());
+        return buffer;
+    }
+
+    static Value deserialize(std::span<u8> span) noexcept {
+        auto value_type = span[0];
+        span = span.subspan(1);
+        auto nbytes = *reinterpret_cast<u32*>(span.subspan(0, 4).data());
+        span = span.subspan(4);
+        std::vector<u8> buffer(nbytes);
+        memcpy(buffer.data(), span.data(), nbytes);
+
+        switch (value_type) {
+            case 'I': {
+                auto const v = *reinterpret_cast<i64*>(buffer.data());
+                return Value{v};
+            }
+            case 'D': {
+                auto const v = *reinterpret_cast<f64*>(buffer.data());
+                return Value{v};
+            }
+            case 'S': {
+                auto const value = std::string{reinterpret_cast<char const*>(buffer.data()),buffer.size()};
+                return Value(value);
+            }
+            case 'V':
+                return Value(buffer);
+            default:
+                return Value{};
+        }
     }
 
     // Getting values without checking.
@@ -86,6 +130,7 @@ public:
         return std::get<T>(data_);
     }
 
+    // Getting optional values.
     template<typename T>
     std::optional<T> value_if() const noexcept {
         if (auto ip = std::get_if<T>(&data_))
@@ -108,6 +153,51 @@ public:
             }
             default:
                 return "?"s;
+        }
+    }
+private:
+    [[nodiscard]] u8 marker() const noexcept {
+        switch (data_.index()) {
+            case MONOSTATE: return 'M';
+            case INTEGER:   return 'I';
+            case DOUBLE:    return 'D';
+            case STRING:    return 'S';
+            case VECTOR:    return 'V';
+            default:        return '?';
+        }
+    }
+
+    /// Return size value in bytes.
+    [[nodiscard]] std::vector<u8> value_to_bytes() const noexcept {
+        switch (data_.index()) {
+            case INTEGER: {
+                // i64 = 64 bity = 8 bajtów
+                std::vector<u8> buffer(8);
+                auto const v = value<i64>();
+                memcpy(buffer.data(), &v, 8);
+                return std::move(buffer);
+            }
+            case DOUBLE: {
+                // f64 = 64 bity = 8 bajtów.
+                std::vector<u8> buffer(8);
+                auto const v = value<f64>();
+                memcpy(buffer.data(), &v, 8);
+                return std::move(buffer);
+            }
+            case STRING: {
+                auto const v = value<std::string>();
+                std::vector<u8> buffer(v.size());
+                memcpy(buffer.data(), v.data(), v.size());
+                return std::move(buffer);
+            }
+            case VECTOR: {
+                auto const v = value<std::vector<u8>>();
+                std::vector<u8> buffer(v.size());
+                memcpy(buffer.data(), v.data(), v.size());
+                return std::move(buffer);
+            }
+            default:
+                return {};
         }
     }
 };

@@ -109,22 +109,27 @@ Row fetch_row_data(sqlite3_stmt* const stmt, int const column_count) noexcept {
             case SQLITE_NULL:
                 row.add(std::move(name));
                 break;
-            case SQLITE_INTEGER:
-                row.add(std::move(name), sqlite3_column_int64(stmt, i));
+            case SQLITE_INTEGER: {
+                Value v{sqlite3_column_int64(stmt, i)};
+                row.add(std::move(name), std::move(v));
                 break;
-            case SQLITE_FLOAT:
-                row.add(std::move(name), sqlite3_column_double(stmt, i));
+            }
+            case SQLITE_FLOAT: {
+                Value v{sqlite3_column_double(stmt, i)};
+                row.add(std::move(name), std::move(v));
                 break;
+            }
             case SQLITE_TEXT: {
                 std::string text{reinterpret_cast<const char *>(sqlite3_column_text(stmt, i))};
-                row.add(std::move(name), std::move(text));
+                Value v{std::move(text)};
+                row.add(std::move(name), std::move(v));
                 break;
             }
             case SQLITE_BLOB: {
                 auto const ptr { static_cast<u8 const*>(sqlite3_column_blob(stmt, i))};
                 auto const size{ sqlite3_column_bytes(stmt, i)};
-                std::vector<u8> vec{ ptr, ptr + size };
-                row.add(std::move(name), std::move(vec));
+                Value v{std::move(std::vector<u8>{ptr, ptr + size})};
+                row.add(std::move(name), std::move(v));
             }
             default: ;
         }
