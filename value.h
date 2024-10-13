@@ -81,8 +81,11 @@ public:
     /// \return Resulting byte vector.
     [[nodiscard]] std::vector<u8> serialize() const noexcept {
         auto const data = value_to_bytes();
-        // Buffer size := 1 byte (marker) + value bytes.
+
+
+
         std::vector<u8> buffer(1 + sizeof(u32) + data.size());
+
         u32 const nbytes = value_to_bytes().size();
 
         buffer[0] = marker();
@@ -97,9 +100,9 @@ public:
     /// \remark zero returned as consumed bytes count means error.
     /// \remark size of the span we are checking step by step.
     static std::pair<Value,size_t> deserialize(std::span<u8> span) noexcept {
-        size_t consumed_bytes = 0;
-
         if (!span.empty()) {
+            size_t consumed_bytes = 0;
+
             auto const value_type = span[0];
             span = span.subspan(1);
             consumed_bytes += 1;
@@ -137,7 +140,7 @@ public:
                 }
             }
         }
-        return {{}, consumed_bytes};
+        return {{}, 0};
     }
 
     // Getting values without checking.

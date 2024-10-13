@@ -54,35 +54,35 @@ public:
         (..., values_.push_back(Value(args)));
     }
 
-    // 1. 'Q'
-    // 2. u32 := total size of the query
-    // 3. u16 := command size
-    // 4. u16 := number of value
-    // 5. u32 := total size of values | values bytes.... |
-    [[nodiscard]] std::vector<u8> serialize() const {
-        std::vector<std::vector<u8>> serialized_values{};   // Vector with serialized value bytes.
+    void add_arg(Value&& v) {
+        values_.push_back(std::move(v));
+    }
+
+    /// Serialization. Converting a Query object to bytes.
+    [[nodiscard]] std::vector<u8> to_bytes() const {
+        // In the 'serialized_values' vector we will store the bytes from all serialized values.
+        std::vector<std::vector<u8>> serialized_values{};
         serialized_values.reserve(values_.size());
-        size_t values_size = 0;                             // Total size of all serialized values.
-        std::ranges::for_each(values_, [&](auto const& v) {
+
+        // Total number of bytes of ALL serialized values.
+        size_t values_size = 0;
+
+        // Serializing all values.
+        std::ranges::for_each(values_, [&values_size, &serialized_values](auto const& v) {
             auto sv = v.serialize();
             values_size += sv.size();
             serialized_values.push_back(std::move(sv));
         });
 
-        size_t cmd_size = cmd_.size();
-        size_t values_count = values_.size();
-        const u32 total_size
-            = sizeof(u8)    // (1b) marker 'Q'
-            + sizeof(u32)   // (4b) informaation about the query total size
-            + sizeof(u16)   // (2b) information about the command size
-            + sizeof(u16)   // (2b) information about number of values
-            + sizeof(u32)   // (4b) information about bytes count of all serialized values.
-            * cmd_.size()   // command content
-            + values_size;  // values content
+        const u32 total_size    // Total size does not include marker byte !!!
+            = sizeof(u32)       // (4bytes) information about the query total size
+            + sizeof(u16)       // (2bytes) information about the command size
+            + sizeof(u16)       // (2bytes) information about number of values
+            + sizeof(u32)       // (4bytes) information about bytes count of all serialized values.
+            * cmd_.size()       // command content size in bytes
+            + values_size;      // values total content size in bytes
 
-        fmt::print("-------------------------------------------------------------------\n");
-
-        std::vector<u8> buffer(total_size);
+        std::vector<u8> buffer(total_size + 1); // We take into account the marker byte (+ 1).
         u8* ptr = buffer.data();
         {   // marker 'Q'
             constexpr u8 marker{'Q'};
@@ -91,25 +91,21 @@ public:
         }
         {   // information about the query total size (without Q)
             auto const nbytes = static_cast<u32>(total_size);
-            fmt::print("total size: {}\n", nbytes);
             memcpy(ptr, &nbytes, sizeof(u32));
             ptr += sizeof(u32);
         }
         {   // information about the command size
             auto const nbytes = static_cast<u16>(cmd_.size());
-            fmt::print("cmd size: {}\n", nbytes);
             memcpy(ptr, &nbytes, sizeof(u16));
             ptr += sizeof(u16);
         }
         {   // information about number of values.
             auto const nbytes = static_cast<u16>(values_.size());
-            fmt::print("number of values: {}\n", nbytes);
             memcpy(ptr, &nbytes, sizeof(u16));
             ptr += sizeof(u16);
         }
         {   // information about bytes count of all serialized values.
             auto const nbytes = static_cast<u32>(values_size);
-            fmt::print("serialized values size: {}\n", nbytes);
             memcpy(ptr, &nbytes, sizeof(u32));
             ptr += sizeof(u32);
         }
@@ -126,43 +122,63 @@ public:
         return buffer;
     }
 
-    static Query deserialize(std::span<u8> span) {
-        fmt::print("=========================================================================\n");
-        if (span[0] == 'Q') {
+    /// Deserialize. Recreate Query object from bytes.
+    static std::pair<Query,size_t> from_bytes(std::span<u8> span) {
+        size_t consumed_bytes = 0;
+
+        if (!span.empty() && span.front() == 'Q') {
             span = span.subspan(1);
-            auto total_size_span = span.subspan(0, sizeof(u32));
-            u32 total_size = *reinterpret_cast<u32*>(total_size_span.data());
-            fmt::print("total size: {}\n", total_size);
-            span = span.subspan(sizeof(u32));
-            // --------------------------------------------------------
-            auto cmd_size_span = span.subspan(0, sizeof(u16));
-            u16 cmd_size = *reinterpret_cast<u16*>(cmd_size_span.data());
-            fmt::print("cmd size: {}\n", cmd_size);
-            span = span.subspan(sizeof(u16));
-            // --------------------------------------------------------
-            auto number_value_span = span.subspan(0, sizeof(u16));
-            u16 number_value = *reinterpret_cast<u16*>(number_value_span.data());
-            fmt::print("number_value: {}\n", number_value);
-            // --------------------------------------------------------
-            span = span.subspan(sizeof(u16));
-            auto serialized_values_span = span.subspan(0, sizeof(u32));
-            u32 serialized_value = *reinterpret_cast<u32*>(serialized_values_span.data());
-            fmt::print("serialized_value: {}\n", serialized_value);
-            span = span.subspan(sizeof(u32));
-            // --------------------------------------------------------
-            auto cmd = std::string{reinterpret_cast<char const*>(span.data()), cmd_size};
-            fmt::print("cmd: {}\n", cmd);
-            span = span.subspan(cmd_size);
-            // --------------------------------------------------------
-            for (int i = 0; i < number_value; ++i) {
-                auto [v, nbytes] = Value::deserialize(span);
-                fmt::print("value: {}\n", v.to_string());
-                span = span.subspan(nbytes);
+            consumed_bytes += 1;
+
+            // next step - get total span size
+            if (span.size() >= sizeof(u32)) {
+                auto const total_size_span = span.subspan(0, sizeof(u32));
+                size_t const  total_size = *reinterpret_cast<u32*>(total_size_span.data());
+
+                if (span.size() >= total_size) {
+                    span = span.subspan(sizeof(u32));
+                    consumed_bytes += sizeof(u32);
+                    // --------------------------------------------------------
+                    auto const cmd_size_span = span.subspan(0, sizeof(u16));
+                    auto const cmd_size = *reinterpret_cast<u16*>(cmd_size_span.data());
+                    span = span.subspan(sizeof(u16));
+                    consumed_bytes += sizeof(u16);
+                    // --------------------------------------------------------
+                    auto const number_value_span = span.subspan(0, sizeof(u16));
+                    auto const number_value = *reinterpret_cast<u16*>(number_value_span.data());
+                    span = span.subspan(sizeof(u16));
+                    consumed_bytes += sizeof(u16);
+                    // --------------------------------------------------------
+                    auto const serialized_values_span = span.subspan(0, sizeof(u32));
+                    auto const serialized_value = *reinterpret_cast<u32*>(serialized_values_span.data());
+                    span = span.subspan(sizeof(u32));
+                    consumed_bytes += sizeof(u32);
+                    // --------------------------------------------------------
+                    auto cmd = std::string{reinterpret_cast<char const*>(span.data()), cmd_size};
+                    Query query{std::move(cmd)};
+                    span = span.subspan(cmd_size);
+                    consumed_bytes += cmd_size;
+                    // --------------------------------------------------------
+                    for (int i = 0; i < number_value; ++i) {
+                        auto [v, nbytes] = Value::deserialize(span);
+                        query.add_arg(std::move(v));
+                        span = span.subspan(nbytes);
+                        consumed_bytes += nbytes;
+                    }
+                    return {query, consumed_bytes};
+                }
             }
         }
-        return Query{};
+        return {{}, consumed_bytes};
     }
 
+    bool operator==(Query const& rhs) const {
+        if (cmd_ != rhs.cmd_)
+            return false;
+        if (values_ != rhs.values_)
+            return false;
+        return true;
+    }
 
     /// Check if query is valid. \n
     /// The query is valid if the number of placeholders(?) is equal
