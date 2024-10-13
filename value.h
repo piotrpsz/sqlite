@@ -49,7 +49,6 @@ public:
     explicit Value(std::string v) : data_{std::move(v)} {}
     explicit Value(std::vector<u8> v) : data_{std::move(v)} {}
 
-
     /// Constructor dedicated to optional values
     template<typename T>
     explicit Value(std::optional<T> v) noexcept {
@@ -74,46 +73,71 @@ public:
         return data_.index();
     }
 
+    /// Each field will start with a letter ('marker') specifying the type of the value. \n
+    /// 'M' - monostate, 'I' - integer, 'D' - double, 'S' - string, 'V' - vector. \n
+    /// Then a number u32 (4 bytes) specifying the size of the value in bytes. \n
+    /// The byte representation of the value to the end. \n
+    /// |mark|u32 := how many bytes|value bytes|
+    /// \return Resulting byte vector.
     [[nodiscard]] std::vector<u8> serialize() const noexcept {
-        // Każde pole będzie rozpoczynać się literą ('marker') okresłającej typ wartości.
-        // 'M' - monostate, 'I' - integer, 'D' - double, 'S' - string, 'V' - vector.
-        // Następnie liczba u32 (4 bajty) określająca rozmiar wartości w bajtach.
-        // Do końca bajtowa reprezentacja wartości.
         auto const data = value_to_bytes();
+        // Buffer size := 1 byte (marker) + value bytes.
         std::vector<u8> buffer(1 + sizeof(u32) + data.size());
         u32 const nbytes = value_to_bytes().size();
+
         buffer[0] = marker();
         memcpy(&buffer[1], &nbytes, sizeof(u32));
         memcpy(&buffer[1 + sizeof(u32)], data.data(), data.size());
         return buffer;
     }
 
-    static Value deserialize(std::span<u8> span) noexcept {
-        auto value_type = span[0];
-        span = span.subspan(1);
-        auto nbytes = *reinterpret_cast<u32*>(span.subspan(0, 4).data());
-        span = span.subspan(4);
-        std::vector<u8> buffer(nbytes);
-        memcpy(buffer.data(), span.data(), nbytes);
+    /// Creating a 'Value' object based on the sent bytes.
+    /// \param span source bytes,
+    /// \return value as object and bytes count consumed on deserialization.
+    /// \remark zero returned as consumed bytes count means error.
+    /// \remark size of the span we are checking step by step.
+    static std::pair<Value,size_t> deserialize(std::span<u8> span) noexcept {
+        size_t consumed_bytes = 0;
 
-        switch (value_type) {
-            case 'I': {
-                auto const v = *reinterpret_cast<i64*>(buffer.data());
-                return Value{v};
+        if (!span.empty()) {
+            auto const value_type = span[0];
+            span = span.subspan(1);
+            consumed_bytes += 1;
+
+            // next step - get the number of bytes that make up the value
+            if (span.size() >= sizeof(u32)) {
+                auto const nbytes = *reinterpret_cast<u32*>(span.subspan(0, sizeof(u32)).data());
+                span = span.subspan(sizeof(u32));
+                consumed_bytes += sizeof(u32);
+
+                // next step - take the bytes that make up the value and convert them to the correct value
+                if (span.size() >= nbytes) {
+                    std::vector<u8> buffer(nbytes);
+                    memcpy(buffer.data(), span.data(), nbytes);
+                    consumed_bytes += nbytes;
+
+                    switch (value_type) {
+                        case 'I': {
+                            auto const v = *reinterpret_cast<i64*>(buffer.data());
+                            return {Value{v}, consumed_bytes};
+                        }
+                        case 'D': {
+                            auto const v = *reinterpret_cast<f64*>(buffer.data());
+                            return { Value{v}, consumed_bytes};
+                        }
+                        case 'S': {
+                            auto const value = std::string{reinterpret_cast<char const*>(buffer.data()),buffer.size()};
+                            return { Value(value), consumed_bytes};
+                        }
+                        case 'V':
+                            return { Value(buffer), consumed_bytes};
+                        default:
+                        {}
+                    }
+                }
             }
-            case 'D': {
-                auto const v = *reinterpret_cast<f64*>(buffer.data());
-                return Value{v};
-            }
-            case 'S': {
-                auto const value = std::string{reinterpret_cast<char const*>(buffer.data()),buffer.size()};
-                return Value(value);
-            }
-            case 'V':
-                return Value(buffer);
-            default:
-                return Value{};
         }
+        return {{}, consumed_bytes};
     }
 
     // Getting values without checking.

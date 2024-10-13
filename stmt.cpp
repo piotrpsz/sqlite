@@ -70,7 +70,7 @@ std::optional<Result> Stmt::exec_with_result(Query const& query) {
     }
 
     Result result{};
-    if (SQLITE_OK == sqlite3_prepare_v2(db_, query.query().c_str(), -1, &stmt_, nullptr)) {
+    if (SQLITE_OK == sqlite3_prepare_v2(db_, query.c_str(), -1, &stmt_, nullptr)) {
         if (bind2stmt(stmt_, query.values())) {
             if (auto n = sqlite3_column_count(stmt_)) {
                 while (SQLITE_ROW == sqlite3_step(stmt_)) {
