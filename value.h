@@ -79,7 +79,7 @@ public:
     /// The byte representation of the value to the end. \n
     /// |mark|u32 := how many bytes|value bytes|
     /// \return Resulting byte vector.
-    [[nodiscard]] std::vector<u8> serialize() const noexcept {
+    [[nodiscard]] std::vector<u8> to_bytes() const noexcept {
         auto const data = value_to_bytes();
 
 
@@ -99,7 +99,7 @@ public:
     /// \return value as object and bytes count consumed on deserialization.
     /// \remark zero returned as consumed bytes count means error.
     /// \remark size of the span we are checking step by step.
-    static std::pair<Value,size_t> deserialize(std::span<u8> span) noexcept {
+    static std::pair<Value,size_t> from_bytes(std::span<u8> span) noexcept {
         if (!span.empty()) {
             size_t consumed_bytes = 0;
 

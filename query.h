@@ -58,7 +58,7 @@ public:
         values_.push_back(std::move(v));
     }
 
-    /// Serialization. Converting a Query object to bytes.
+    /// Serialization. Converting a Query to bytes.
     [[nodiscard]] std::vector<u8> to_bytes() const {
         // In the 'serialized_values' vector we will store the bytes from all serialized values.
         std::vector<std::vector<u8>> serialized_values{};
@@ -69,7 +69,7 @@ public:
 
         // Serializing all values.
         std::ranges::for_each(values_, [&values_size, &serialized_values](auto const& v) {
-            auto sv = v.serialize();
+            auto sv = v.to_bytes();
             values_size += sv.size();
             serialized_values.push_back(std::move(sv));
         });
@@ -82,11 +82,11 @@ public:
             * cmd_.size()       // command content size in bytes
             + values_size;      // values total content size in bytes
 
-        std::vector<u8> buffer(total_size + 1); // We take into account the marker byte (+ 1).
+        std::vector<u8> buffer(total_size + 1); // We take into account the marker 'Q' byte (+ 1).
         u8* ptr = buffer.data();
         {   // marker 'Q'
             constexpr u8 marker{'Q'};
-            memcpy(ptr, &marker, sizeof(marker));
+            memcpy(ptr, &marker, sizeof(u8));
             ptr += sizeof(u8);
         }
         {   // information about the query total size (without Q)
@@ -122,9 +122,9 @@ public:
         return buffer;
     }
 
-    /// Deserialize. Recreate Query object from bytes.
+    /// Deserialization. Recreate Query from bytes.
     static std::pair<Query,size_t> from_bytes(std::span<u8> span) {
-        size_t consumed_bytes = 0;
+        size_t consumed_bytes{0};
 
         if (!span.empty() && span.front() == 'Q') {
             span = span.subspan(1);
@@ -160,7 +160,7 @@ public:
                     consumed_bytes += cmd_size;
                     // --------------------------------------------------------
                     for (int i = 0; i < number_value; ++i) {
-                        auto [v, nbytes] = Value::deserialize(span);
+                        auto [v, nbytes] = Value::from_bytes(span);
                         query.add_arg(std::move(v));
                         span = span.subspan(nbytes);
                         consumed_bytes += nbytes;
