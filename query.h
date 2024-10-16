@@ -74,7 +74,7 @@ public:
             serialized_values.push_back(std::move(sv));
         });
 
-        const u32 total_size    // Total size does not include marker byte !!!
+        u32 const total_size    // Total size does not include marker byte !!!
             = sizeof(u32)       // (4bytes) information about the query total size
             + sizeof(u16)       // (2bytes) information about the command size
             + sizeof(u16)       // (2bytes) information about number of values

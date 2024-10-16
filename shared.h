@@ -100,5 +100,14 @@ namespace shared {
         return std::to_string(static_cast<f64>(v));
     }
 
+    static inline std::optional<u32> u32_from(std::span<u8> const span) noexcept {
+        if (span.size() >= sizeof(u32)) {
+            auto const data_span = span.subspan(0, sizeof(u32));
+            auto const value = *reinterpret_cast<u32*>(data_span.data());
+            return {value};
+        }
+        return {};
+    }
+
 
 }

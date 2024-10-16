@@ -77,6 +77,15 @@ public:
                : add(std::move(name));
     }
 
+    /// Serialization. Converting a Field to bytes.
+    auto to_bytes() const -> std::vector<u8>;
+
+    /// Deserialization. Recreate Field from bytes.
+    static auto from_bytes(std::span<u8> span) -> std::pair<Row,size_t>;
+
+    /// Serialized data info. Generally for debug.
+    static auto serialized_data(std::span<u8> span) -> std::string;
+
     /****************************************************************
     *                                                               *
     *                      I T E R A T O R S                        *
@@ -108,13 +117,5 @@ public:
         return {names, values};
     }
 
-    std::string to_string() const noexcept {
-        std::vector<std::string> buffer{};
-        buffer.reserve(data_.size());
-
-        for (const auto&[_, f] : data_) {
-            buffer.emplace_back(f.to_string());
-        }
-        return shared::join(buffer);
-    }
+    auto to_string() -> std::string;
 };

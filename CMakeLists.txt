@@ -17,6 +17,9 @@ add_library(sqlite STATIC
         result.h
         row.h
         stmt.cpp stmt.h
+        field.cc
+        row.cc
+        value.cc
 )
 
 target_link_libraries(sqlite PRIVATE
