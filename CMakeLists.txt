@@ -20,6 +20,7 @@ add_library(sqlite STATIC
         field.cc
         row.cc
         value.cc
+        result.cc
 )
 
 target_link_libraries(sqlite PRIVATE

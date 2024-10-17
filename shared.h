@@ -44,6 +44,9 @@ namespace shared {
     /// \param spacer - a character added after delimiter (space as default)
     /// \return connection result as string
     static inline std::string join(std::span<const std::string> const data, char const delimiter = ',', std::optional<char> const spacer = {}) noexcept {
+        if (data.empty())
+            return {};
+
         auto n = std::accumulate(
                 data.begin(),
                 data.end(),
@@ -102,11 +105,8 @@ namespace shared {
 
     template<std::integral T>
     std::optional<T> from(std::span<u8> const span) noexcept {
-        if (span.size() != sizeof(T)) {
-            auto const subspan = span.subspan(0, sizeof(T));
-            auto const v = *reinterpret_cast<T*>(subspan.data());
-            return v;
-        }
+        if (span.size() >= sizeof(T))
+            return *reinterpret_cast<T*>(span.first(sizeof(T)).data());
         return {};
     }
 

@@ -77,6 +77,11 @@ public:
                : add(std::move(name));
     }
 
+    auto operator==(Row const& rhs) const -> bool;
+    auto operator!=(Row const& rhs) const -> bool {
+        return !(*this == rhs);
+    }
+
     /// Serialization. Converting a Field to bytes.
     auto to_bytes() const -> std::vector<u8>;
 
@@ -85,6 +90,8 @@ public:
 
     /// Serialized data info. Generally for debug.
     static auto serialized_data(std::span<u8> span) -> std::string;
+
+    auto to_string() -> std::string;
 
     /****************************************************************
     *                                                               *
@@ -116,6 +123,4 @@ public:
         }
         return {names, values};
     }
-
-    auto to_string() -> std::string;
 };

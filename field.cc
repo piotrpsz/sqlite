@@ -92,7 +92,7 @@ from_bytes(std::span<u8> span)
             consumed_bytes += sizeof(u32);
 
             if (span.size() >= *chunk_size) {
-                span = span.subspan(0, *chunk_size);
+                span = span.first(*chunk_size);
 
                 if (const auto name_size = shared::from<u16>(span)) {
                     span = span.subspan(sizeof(u16));
@@ -119,15 +119,16 @@ from_bytes(std::span<u8> span)
 
 auto Field::
 serialized_data(std::span<u8> span) -> std::string {
-    if (span.size() >= sizeof(u8)) {
+    if (!span.empty() && span.front() == 'F') {
         std::string buffer{};
         buffer.append(fmt::format("0x{:02x} [{}]\n", span[0], static_cast<char>(span[0])));
         span = span.subspan(1);
-        if (auto chunk_size = shared::from<u32>(span)) {
-            buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(span.subspan(0, sizeof(u32))), *chunk_size));
-            span = span.subspan(0, *chunk_size);
 
+        if (auto chunk_size = shared::from<u32>(span)) {
+            auto const subspan = span.subspan(0, sizeof(u32));
+            buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(subspan), *chunk_size));
             span = span.subspan(sizeof(u32));
+
             if (auto name_size = shared::from<u16>(span)) {
                 buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(span.subspan(0, *name_size)), *name_size));
                 span = span.subspan(sizeof(u16));

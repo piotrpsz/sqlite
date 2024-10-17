@@ -71,8 +71,9 @@ from_bytes(std::span<u8> span) noexcept
             consumed_bytes += sizeof(u32);
 
             if (span.size() >= *chunk_size) {
-                span = span.subspan(0, *chunk_size);
+                span = span.first(*chunk_size);
                 consumed_bytes += *chunk_size;
+
                 switch (type) {
                     case 'I': {
                         auto const v = *reinterpret_cast<i64*>(span.data());
@@ -96,9 +97,14 @@ from_bytes(std::span<u8> span) noexcept
             }
         }
     }
-
     return {{}, 0};
 }
+
+/********************************************************************
+*                                                                   *
+*                S E R I A L I Z E D   D A T A                      *
+*                                                                   *
+********************************************************************/
 
 std::string Value::serialized_data(std::span<u8> span) noexcept {
     std::string buffer{};
@@ -108,10 +114,11 @@ std::string Value::serialized_data(std::span<u8> span) noexcept {
         span = span.subspan(1);
 
         if (auto chunk_size = shared::from<u32>(span)) {
-            buffer.append(fmt::format("{}  [{}]\n", shared::hex_bytes_as_str(span.subspan(0, sizeof(u32))), chunk_size.value()));
+            buffer.append(fmt::format("{}  [{}]\n", shared::hex_bytes_as_str(span.first(sizeof(u32))), *chunk_size));
             span = span.subspan(sizeof(u32));
-            if (span.size() >= chunk_size.value()) {
-                span = span.subspan(0, chunk_size.value());
+
+            if (span.size() >= *chunk_size) {
+                span = span.first(*chunk_size);
                 switch (type) {
                     case 'I': {
                         auto const v = *reinterpret_cast<i64*>(span.data());
@@ -144,6 +151,12 @@ std::string Value::serialized_data(std::span<u8> span) noexcept {
     return buffer;
 }
 
+/********************************************************************
+*                                                                   *
+*                        T O   S T R I N G                          *
+*                                                                   *
+********************************************************************/
+
 auto Value::
 to_string() const noexcept
 -> std::string {
@@ -164,6 +177,12 @@ to_string() const noexcept
     }
 }
 
+/********************************************************************
+*                                                                   *
+*                        I S   M A R K E R                          *
+*                                                                   *
+********************************************************************/
+
 auto Value::
 is_marker(u8 const c) noexcept
 -> bool {
@@ -174,6 +193,12 @@ is_marker(u8 const c) noexcept
     if (c == 'V') return true;
     return {};
 }
+
+/********************************************************************
+*                                                                   *
+*                           M A R K E R                             *
+*                                                                   *
+********************************************************************/
 
 auto Value::
 marker() const noexcept
@@ -187,6 +212,12 @@ marker() const noexcept
         default:        return '?';
     }
 }
+
+/********************************************************************
+*                                                                   *
+*                  V A L U E   T O   B Y T E S                      *
+*                                                                   *
+********************************************************************/
 
 auto Value::
 value_to_bytes() const noexcept

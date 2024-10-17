@@ -28,7 +28,11 @@
 #include "row.h"
 
 auto Row::
-to_string() -> std::string {
+to_string()
+-> std::string {
+    if (data_.empty())
+        return {};
+
     // extracting keys and sorting them
     std::vector<std::string> keys{};
     keys.reserve(data_.size());
@@ -48,53 +52,48 @@ to_string() -> std::string {
     return shared::join(buffer);
 }
 
+/********************************************************************
+*                                                                   *
+*                         T O   B Y T E S                           *
+*                                                                   *
+********************************************************************/
+
 auto Row::
 to_bytes() const ->
 std::vector<u8> {
     std::vector<std::vector<u8>> serialized_fields{};
-    serialized_fields.reserve(data_.size());
+    const u16 fields_count = data_.size();
+    serialized_fields.reserve(fields_count);
     size_t values_size = 0;
 
     for (auto const& [_, field] : data_) {
         auto sf = field.to_bytes();
-        values_size += (sizeof(u32) + sf.size());
+        values_size += sf.size();
         serialized_fields.push_back(sf);
     }
 
-    u32 const total_size
-        = sizeof(u32)
-        + sizeof(u16)
-        + values_size;
-    // fmt::print("total size: {}\n", total_size);
-    std::vector<u8> buffer(total_size + 1); // We take into account the marker 'R' byte (+1).
+    u32 const chunk_size
+        = sizeof(u16)   // fields number
+        + values_size;  // bytes number of all fields
 
-    u8 *ptr = buffer.data();
-    {   // Marker 'F'
-        constexpr u8 marker{'R'};
-        memcpy(ptr, &marker, sizeof(u8));
-        ptr += sizeof(u8);
-    }
-    {   // total size
-        auto const v = static_cast<u32>(total_size);
-        memcpy(ptr, &v, sizeof(u32));
-        ptr += sizeof(u32);
-    }
-    {   // fields count
-        auto const v = static_cast<u16>(serialized_fields.size());
-        memcpy(ptr, &v, sizeof(u16));
-        ptr += sizeof(u16);
-    }
-    std::ranges::for_each(serialized_fields, [&](auto sf) {
-        auto const v = static_cast<u32>(sf.size());
-        memcpy(ptr, &v, sizeof(u32));
-        ptr += sizeof(u32);
-        memcpy(ptr, sf.data(), sf.size());
-        // fmt::print("*** {}\n", shared::hex_bytes_as_str(sf));
-        ptr += sf.size();
+    std::vector<u8> buffer{};
+    buffer.reserve(1 + sizeof(u32) + chunk_size);
+
+    buffer.push_back('R');
+    std::copy_n(reinterpret_cast<u8 const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
+    std::copy_n(reinterpret_cast<u8 const*>(&fields_count), sizeof(u16), std::back_inserter(buffer));
+    std::ranges::for_each(serialized_fields, [&buffer](auto sf) {
+        std::copy_n(sf.begin(), sf.size(), std::back_inserter(buffer));
     });
 
     return buffer;
 }
+
+/********************************************************************
+*                                                                   *
+*                       F R O M   B Y T E S                         *
+*                                                                   *
+********************************************************************/
 
 auto Row::
 from_bytes(std::span<u8> span) ->
@@ -104,33 +103,25 @@ std::pair<Row,size_t> {
     if (!span.empty() && span[0] == 'R') {
         span = span.subspan(1);
         consumed_bytes += 1;
-
-        size_t const total_size = *reinterpret_cast<u32*>(span.subspan(0, sizeof(u32)).data());
-        // fmt::print("row total size: {}\n", total_size);
-        if (span.size() >= total_size) {
+        if (auto const chunk_size = shared::from<u32>(span)) {
             span = span.subspan(sizeof(u32));
             consumed_bytes += sizeof(u32);
+            if (span.size() >= *chunk_size) {
+                span = span.first(*chunk_size);
+                if (auto const field_count = shared::from<u16>(span)) {;
+                    span = span.subspan(sizeof(u16));
+                    consumed_bytes += sizeof(u16);
 
-            size_t const field_count = *reinterpret_cast<u16*>(span.subspan(0, sizeof(u16)).data());
-            // fmt::print("values count: {}\n", field_count);
-            span = span.subspan(sizeof(u16));
-            consumed_bytes += sizeof(u16);
-
-            Row row{};
-            for (int i = 0; i < field_count; ++i) {
-                // we take bytes describing the size of the field
-                auto span_size = span.subspan(0, sizeof(u32));
-                auto const size = *reinterpret_cast<u32*>(span_size.data());
-                span = span.subspan(sizeof(u32));
-                // we take the bytes describing the field and create them
-                auto span_field = span.subspan(0, size);
-                auto [f, n] = Field::from_bytes(span_field);
-                // fmt::print("--- {}\n", f.to_string());
-                row.add(f);
-                span = span.subspan(n);
-                consumed_bytes += n;
+                    Row row{};
+                    for (int i = 0; i < field_count; ++i) {
+                        auto [f, n] = Field::from_bytes(span);
+                        row.add(f);
+                        span = span.subspan(n);
+                        consumed_bytes += n;
+                    }
+                    return {std::move(row), consumed_bytes};
+                }
             }
-            return {row, consumed_bytes};
         }
     }
     return {{}, consumed_bytes};
@@ -172,4 +163,29 @@ serialized_data(std::span<u8> span)
         }
     }
     return {};
+}
+
+/********************************************************************
+*                                                                   *
+*                      O P E R A T O R   ==                         *
+*                                                                   *
+********************************************************************/
+
+auto Row::
+operator==(Row const& rhs) const
+-> bool {
+    auto rhs_data = rhs.data_;
+    auto this_data = data_;
+
+    // extracting keys and sorting them
+    std::vector<std::string> keys{};
+    keys.reserve(data_.size());
+    std::ranges::for_each(data_, [&keys](auto p) {
+        keys.emplace_back(p.first);
+    });
+
+    for (auto const& key : keys)
+        if (this_data[key] != rhs_data[key])
+            return false;
+    return true;
 }

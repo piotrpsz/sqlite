@@ -55,6 +55,22 @@ public:
         data_.push_back(std::move(r));
     }
 
+    /// Serialization. Converting a Field to bytes.
+    [[nodiscard]] auto to_bytes() const -> std::vector<u8>;
+
+    /// Deserialization. Recreate Field from bytes.
+    static auto from_bytes(std::span<u8> span) -> std::pair<Result,size_t>;
+
+    auto to_string() const -> std::string;
+
+    /// Serialized data info. Generally for debug.
+    // static auto serialized_data(std::span<u8> span) -> std::string;
+
+    auto operator==(Result const& rhs) const noexcept -> bool;
+    auto operator!=(Result const& rhs) const noexcept -> bool {
+        return !(*this == rhs);
+    }
+
     /****************************************************************
     *                                                               *
     *                      I T E R A T O R S                        *
