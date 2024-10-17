@@ -27,29 +27,34 @@
 -------------------------------------------------------------------*/
 #include "value.h"
 
+/********************************************************************
+*                                                                   *
+*                         T O   B Y T E S                           *
+*                                                                   *
+********************************************************************/
+
 auto Value::
 to_bytes() const noexcept
 -> std::vector<u8> {
     auto const data = value_to_bytes();
-    u32 const chunk_size = data.size();
+    u32 const chunk_size = static_cast<u32>(data.size());
 
-    std::vector<u8> buffer(sizeof(u8) + sizeof(u32) + chunk_size);
-    u8* ptr = buffer.data();
+    std::vector<u8> buffer{};
+    buffer.reserve(sizeof(u8) + sizeof(u32) + chunk_size);
 
-    {   // save the appropriate type marker
-        u8 const value_type_marker = marker();
-        memcpy(ptr, &value_type_marker, sizeof(u8));
-        ptr += sizeof(u8);
-    }
-    {   // save value bytes count
-        memcpy(ptr, &chunk_size, sizeof(u32));
-        ptr += sizeof(u32);
-    }
-    {   // and bytes that create value
-        memcpy(ptr, data.data(), data.size());
-    }
+    buffer.push_back(marker());
+    std::copy_n(reinterpret_cast<u8 const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
+    std::copy_n(data.data(), chunk_size, std::back_inserter(buffer));
+    buffer.shrink_to_fit();
+
     return buffer;
 }
+
+/********************************************************************
+*                                                                   *
+*                       F R O M   B Y T E S                         *
+*                                                                   *
+********************************************************************/
 
 auto Value::
 from_bytes(std::span<u8> span) noexcept
@@ -61,13 +66,13 @@ from_bytes(std::span<u8> span) noexcept
         consumed_bytes += 1;
 
         // next step - get the number of bytes that make up the value
-        if (auto chunk_size = shared::u32_from(span)) {
+        if (const auto chunk_size = shared::from<u32>(span)) {
             span = span.subspan(sizeof(u32));
             consumed_bytes += sizeof(u32);
 
-            if (span.size() >= chunk_size.value()) {
-                span = span.subspan(0, chunk_size.value());
-                consumed_bytes += chunk_size.value();
+            if (span.size() >= *chunk_size) {
+                span = span.subspan(0, *chunk_size);
+                consumed_bytes += *chunk_size;
                 switch (type) {
                     case 'I': {
                         auto const v = *reinterpret_cast<i64*>(span.data());
@@ -102,7 +107,7 @@ std::string Value::serialized_data(std::span<u8> span) noexcept {
         buffer.append(fmt::format("0x{:02x}  [{}]\n", type, static_cast<char>(type)));
         span = span.subspan(1);
 
-        if (auto chunk_size = shared::u32_from(span)) {
+        if (auto chunk_size = shared::from<u32>(span)) {
             buffer.append(fmt::format("{}  [{}]\n", shared::hex_bytes_as_str(span.subspan(0, sizeof(u32))), chunk_size.value()));
             span = span.subspan(sizeof(u32));
             if (span.size() >= chunk_size.value()) {
