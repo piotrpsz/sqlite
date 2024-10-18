@@ -21,6 +21,8 @@ add_library(sqlite STATIC
         row.cc
         value.cc
         result.cc
+        query.cc
+        gzip.h
 )
 
 target_link_libraries(sqlite PRIVATE

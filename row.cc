@@ -100,7 +100,7 @@ from_bytes(std::span<u8> span) ->
 std::pair<Row,size_t> {
     size_t consumed_bytes = 0;
 
-    if (!span.empty() && span[0] == 'R') {
+    if (!span.empty() && span.front() == 'R') {
         span = span.subspan(1);
         consumed_bytes += 1;
         if (auto const chunk_size = shared::from<u32>(span)) {

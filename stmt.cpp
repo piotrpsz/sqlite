@@ -75,7 +75,7 @@ std::optional<Result> Stmt::exec_with_result(Query const& query) {
             if (auto n = sqlite3_column_count(stmt_)) {
                 while (SQLITE_ROW == sqlite3_step(stmt_)) {
                     if (auto row = fetch_row_data(stmt_, n); !row.empty()) {
-                        result.push_back(std::move(row));
+                        result.add(std::move(row));
                     }
                 }
             }

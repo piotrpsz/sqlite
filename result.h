@@ -51,9 +51,15 @@ public:
     [[nodiscard]] auto at(int const i) const {
         return data_.at(i);
     }
-    void push_back(Row r) {
+    Result& add(Row&& r) {
         data_.push_back(std::move(r));
+        return *this;
     }
+    Result& add(Row const& r) {
+        data_.push_back(r);
+        return *this;
+    }
+
 
     /// Serialization. Converting a Field to bytes.
     [[nodiscard]] auto to_bytes() const -> std::vector<u8>;

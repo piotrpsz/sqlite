@@ -107,7 +107,7 @@ std::pair<Result,size_t> {
                     Result result{};
                     for (int i = 0; i < rows_count; ++i) {
                         auto [row, nbytes] = Row::from_bytes(span);
-                        result.push_back(row);
+                        result.add(std::move(row));
                         span = span.subspan(nbytes);
                         consumend_bytes += nbytes;
                     }
@@ -127,7 +127,7 @@ std::pair<Result,size_t> {
 ********************************************************************/
 
 auto Result::
-operator==(Result const& rhs) const
+operator==(Result const& rhs) const noexcept
 -> bool {
     for (auto i = 0; i < data_.size(); ++i)
         if (data_[i] != rhs.data_[i])
