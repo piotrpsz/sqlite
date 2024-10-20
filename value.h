@@ -75,10 +75,10 @@ public:
 
     /// Serialization. Converting a Field to bytes.
     [[nodiscard]] auto to_bytes() const noexcept
-    -> std::vector<u8>;
+    -> std::vector<char>;
 
     /// Deserialization. Recreate Field from bytes.
-    static auto from_bytes(std::span<u8> span) noexcept
+    static auto from_bytes(std::span<char> span) noexcept
     -> std::pair<Value,size_t>;
 
     /// Serialized data info. Generally for debug.
@@ -122,11 +122,11 @@ public:
 
 private:
     /// Check if it is valid marker.
-    static auto is_marker(u8 c) noexcept -> bool;
+    static auto is_marker(char c) noexcept -> bool;
 
     /// Return marker for current value;
-    [[nodiscard]] auto marker() const noexcept -> u8;
+    [[nodiscard]] auto marker() const noexcept -> char;
 
     /// Return serialize value.
-    [[nodiscard]] auto value_to_bytes() const noexcept -> std::vector<u8>;
+    [[nodiscard]] auto value_to_bytes() const noexcept -> std::vector<char>;
 };

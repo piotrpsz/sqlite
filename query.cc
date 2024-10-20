@@ -26,6 +26,7 @@
 /*------- include files:
 -------------------------------------------------------------------*/
 #include "query.h"
+#include "gzip.h"
 
 /********************************************************************
 *                                                                   *
@@ -34,10 +35,10 @@
 ********************************************************************/
 
 auto Query::
-to_bytes() const
--> std::vector<uint8_t> {
+to_bytes(bool const compress) const
+-> std::vector<char> {
     // In the 'serialized_values' vector we will store the bytes from ALL serialized values.
-    std::vector<std::vector<u8>> serialized_values{};
+    std::vector<std::vector<char>> serialized_values{};
     serialized_values.reserve(values_.size());
     // Total number of bytes of ALL serialized values.
     auto values_size = 0;
@@ -60,19 +61,29 @@ to_bytes() const
         + cmd_size          // command content bytes
         + values_size;      // all values content bytes
 
-    std::vector<u8> buffer{};
-    buffer.reserve(1 + sizeof(u32) + chunk_size);
+    std::vector<char> buffer{};
+    buffer.reserve(sizeof(u32) + chunk_size);
 
-    buffer.push_back(QUERY_MARKER);
-    std::copy_n(reinterpret_cast<u8 const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
-    std::copy_n(reinterpret_cast<u8 const*>(&cmd_size), sizeof(u16), std::back_inserter(buffer));
-    std::copy_n(reinterpret_cast<u8 const*>(&values_count), sizeof(u16), std::back_inserter(buffer));
+    std::copy_n(reinterpret_cast<char const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
+    std::copy_n(reinterpret_cast<char const*>(&cmd_size), sizeof(u16), std::back_inserter(buffer));
+    std::copy_n(reinterpret_cast<char const*>(&values_count), sizeof(u16), std::back_inserter(buffer));
     std::copy_n(cmd_.begin(), cmd_size, std::back_inserter(buffer));
     std::ranges::for_each(serialized_values, [&buffer](auto sf) {
         std::copy_n(sf.begin(), sf.size(), std::back_inserter(buffer));
     });
 
-    return buffer;
+    if (compress) {
+        auto const compressed = gzip::compress(buffer);
+        std::vector<char> result(1 + compressed.size());
+        result[0] = QUERY_MARKER;
+        std::memcpy(result.data() + 1, compressed.data(), compressed.size());
+        return std::move(result);
+    }
+
+    std::vector<char> result(1 + buffer.size());
+    result[0] = QUERY_MARKER;
+    std::memcpy(result.data() + 1, buffer.data(), buffer.size());
+    return std::move(result);
 }
 
 /********************************************************************
@@ -82,7 +93,7 @@ to_bytes() const
 ********************************************************************/
 
 auto Query::
-from_bytes(std::span<u8> span)
+from_bytes(std::span<char> span, bool const compress)
 -> std::pair<Query,size_t> {
     if (!span.empty() && span.front() == QUERY_MARKER) {
         span = span.subspan(1);

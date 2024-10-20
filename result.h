@@ -62,10 +62,10 @@ public:
 
 
     /// Serialization. Converting a Field to bytes.
-    [[nodiscard]] auto to_bytes() const -> std::vector<u8>;
+    [[nodiscard]] auto to_bytes(bool compress = false) const -> std::vector<char>;
 
     /// Deserialization. Recreate Field from bytes.
-    static auto from_bytes(std::span<u8> span) -> std::pair<Result,size_t>;
+    static auto from_bytes(std::span<char> span) -> std::pair<Result,size_t>;
 
     auto to_string() const -> std::string;
 

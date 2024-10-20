@@ -47,7 +47,7 @@ to_string() const -> std::string {
 
 auto Field::
 to_bytes() const
--> std::vector<u8> {
+-> std::vector<char> {
     auto const& [name, value] = data_;
     auto const value_bytes = value.to_bytes();
 
@@ -59,8 +59,8 @@ to_bytes() const
         + name.size()           // name bytes
         + value_bytes.size();   // value bytes
 
-    std::vector<u8> buffer{};
-    buffer.reserve(1 + sizeof(u32) + chunk_size);
+    std::vector<char> buffer{};
+    buffer.reserve(sizeof(char) + sizeof(u32) + chunk_size);
 
     buffer.push_back('F');
     std::copy_n(reinterpret_cast<u8 const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
@@ -79,7 +79,7 @@ to_bytes() const
 ********************************************************************/
 
 auto Field::
-from_bytes(std::span<u8> span)
+from_bytes(std::span<char> span)
 -> std::pair<Field,size_t> {
     size_t consumed_bytes{0};
 
@@ -118,7 +118,7 @@ from_bytes(std::span<u8> span)
 }
 
 auto Field::
-serialized_data(std::span<u8> span) -> std::string {
+serialized_data(std::span<char> span) -> std::string {
     if (!span.empty() && span.front() == 'F') {
         std::string buffer{};
         buffer.append(fmt::format("0x{:02x} [{}]\n", span[0], static_cast<char>(span[0])));

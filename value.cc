@@ -35,12 +35,12 @@
 
 auto Value::
 to_bytes() const noexcept
--> std::vector<u8> {
+-> std::vector<char> {
     auto const data = value_to_bytes();
     u32 const chunk_size = static_cast<u32>(data.size());
 
-    std::vector<u8> buffer{};
-    buffer.reserve(sizeof(u8) + sizeof(u32) + chunk_size);
+    std::vector<char> buffer{};
+    buffer.reserve(sizeof(char) + sizeof(u32) + chunk_size);
 
     buffer.push_back(marker());
     std::copy_n(reinterpret_cast<u8 const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
@@ -57,7 +57,7 @@ to_bytes() const noexcept
 ********************************************************************/
 
 auto Value::
-from_bytes(std::span<u8> span) noexcept
+from_bytes(std::span<char> span) noexcept
 -> std::pair<Value,size_t> {
     if (!span.empty() && is_marker(span.front())) {
         size_t consumed_bytes = 0;
@@ -184,7 +184,7 @@ to_string() const noexcept
 ********************************************************************/
 
 auto Value::
-is_marker(u8 const c) noexcept
+is_marker(char const c) noexcept
 -> bool {
     if (c == 'M') return true;
     if (c == 'I') return true;
@@ -202,7 +202,7 @@ is_marker(u8 const c) noexcept
 
 auto Value::
 marker() const noexcept
--> u8 {
+-> char {
     switch (data_.index()) {
         case MONOSTATE: return 'M';
         case INTEGER:   return 'I';
@@ -221,31 +221,31 @@ marker() const noexcept
 
 auto Value::
 value_to_bytes() const noexcept
--> std::vector<u8> {
+-> std::vector<char> {
     switch (data_.index()) {
         case INTEGER: {
             // i64 = 64 bity = 8 bajtów
-            std::vector<u8> buffer(sizeof(i64));
+            std::vector<char> buffer(sizeof(i64));
             auto const v = value<i64>();
             memcpy(buffer.data(), &v, sizeof(i64));
             return std::move(buffer);
         }
         case DOUBLE: {
             // f64 = 64 bity = 8 bajtów.
-            std::vector<u8> buffer(sizeof(f64));
+            std::vector<char> buffer(sizeof(f64));
             auto const v = value<f64>();
             memcpy(buffer.data(), &v, sizeof(f64));
             return std::move(buffer);
         }
         case STRING: {
             auto const v = value<std::string>();
-            std::vector<u8> buffer(v.size());
+            std::vector<char> buffer(v.size());
             memcpy(buffer.data(), v.data(), v.size());
             return std::move(buffer);
         }
         case VECTOR: {
             auto const v = value<std::vector<u8>>();
-            std::vector<u8> buffer(v.size());
+            std::vector<char> buffer(v.size());
             memcpy(buffer.data(), v.data(), v.size());
             return std::move(buffer);
         }

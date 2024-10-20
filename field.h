@@ -61,13 +61,13 @@ public:
     [[nodiscard]] auto to_string() const -> std::string;
 
     /// Serialization. Converting a Field to bytes.
-    [[nodiscard]] auto to_bytes() const -> std::vector<u8>;
+    [[nodiscard]] auto to_bytes() const -> std::vector<char>;
 
     /// Deserialization. Recreate Field from bytes.
-    static std::pair<Field,size_t> from_bytes(std::span<u8> span);
+    static std::pair<Field,size_t> from_bytes(std::span<char> span);
 
     /// Serialized data info. Generally for debug.
-    static auto serialized_data(std::span<u8> span) -> std::string;
+    static auto serialized_data(std::span<char> span) -> std::string;
 
     bool operator==(Field const& rhs) const {
         return data_ == rhs.data_;

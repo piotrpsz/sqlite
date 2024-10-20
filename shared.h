@@ -80,6 +80,13 @@ namespace shared {
         return join(components, ',');
     }
 
+    static inline std::string hex_bytes_as_str(std::span<const char> const data) noexcept {
+        auto const components = data
+                      | vws::transform([](u8 const c) { return fmt::format("0x{:02x}", c); })
+                      | rng::to<std::vector>();
+        return join(components, ',');
+    }
+
     static inline std::optional<int> to_int(std::string_view sv, int base = 10) {
         int value{};
         auto [_, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), value, base);
@@ -109,5 +116,10 @@ namespace shared {
             return *reinterpret_cast<T*>(span.first(sizeof(T)).data());
         return {};
     }
-
+    template<std::integral T>
+    std::optional<T> from(std::span<char> const span) noexcept {
+        if (span.size() >= sizeof(T))
+            return *reinterpret_cast<T*>(span.first(sizeof(T)).data());
+        return {};
+    }
 }

@@ -60,8 +60,8 @@ to_string()
 
 auto Row::
 to_bytes() const ->
-std::vector<u8> {
-    std::vector<std::vector<u8>> serialized_fields{};
+std::vector<char> {
+    std::vector<std::vector<char>> serialized_fields{};
     const u16 fields_count = data_.size();
     serialized_fields.reserve(fields_count);
     size_t values_size = 0;
@@ -76,8 +76,8 @@ std::vector<u8> {
         = sizeof(u16)   // fields number
         + values_size;  // bytes number of all fields
 
-    std::vector<u8> buffer{};
-    buffer.reserve(1 + sizeof(u32) + chunk_size);
+    std::vector<char> buffer{};
+    buffer.reserve(sizeof(char) + sizeof(u32) + chunk_size);
 
     buffer.push_back('R');
     std::copy_n(reinterpret_cast<u8 const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
@@ -96,7 +96,7 @@ std::vector<u8> {
 ********************************************************************/
 
 auto Row::
-from_bytes(std::span<u8> span) ->
+from_bytes(std::span<char> span) ->
 std::pair<Row,size_t> {
     size_t consumed_bytes = 0;
 
@@ -128,7 +128,7 @@ std::pair<Row,size_t> {
 }
 
 auto Row::
-serialized_data(std::span<u8> span)
+serialized_data(std::span<char> span)
 -> std::string {
     if (span.size() >= sizeof(u8)) {
         std::string buffer{};

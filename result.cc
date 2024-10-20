@@ -26,6 +26,7 @@
 /*------- include files:
 -------------------------------------------------------------------*/
 #include "result.h"
+#include "gzip.h"
 
 /********************************************************************
 *                                                                   *
@@ -52,9 +53,9 @@ auto Result
 ********************************************************************/
 
 auto Result::
-to_bytes() const
--> std::vector<u8> {
-    std::vector<std::vector<u8>> serialized_rows{};
+to_bytes(bool const compress) const
+-> std::vector<char> {
+    std::vector<std::vector<char>> serialized_rows{};
     const u16 rows_count = data_.size();
     serialized_rows.reserve(rows_count);
     size_t rows_size = 0;
@@ -69,16 +70,28 @@ to_bytes() const
         = sizeof(u16)   // rows number
         + rows_size;    // bytes number of sll rows
 
-    std::vector<u8> buffer{};
-    buffer.reserve(1 + sizeof(u32) + chunk_size);
+    std::vector<char> buffer{};
+    buffer.reserve(sizeof(u32) + chunk_size);
 
-    buffer.push_back('T');
-    std::copy_n(reinterpret_cast<u8 const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
-    std::copy_n(reinterpret_cast<u8 const*>(&rows_count), sizeof(u16), std::back_inserter(buffer));
+    std::copy_n(reinterpret_cast<char const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
+    std::copy_n(reinterpret_cast<char const*>(&rows_count), sizeof(u16), std::back_inserter(buffer));
     std::ranges::for_each(serialized_rows, [&buffer](auto sf) {
         std::copy_n(sf.begin(), sf.size(), std::back_inserter(buffer));
     });
-    return buffer;
+
+
+    if (compress) {
+        auto const compressed = gzip::compress(buffer);
+        std::vector<char> result(1 + compressed.size());
+        result[0] = 'T';
+        std::memcpy(result.data() + 1, compressed.data(), compressed.size());
+        return std::move(result);
+    }
+
+    std::vector<char> result(1 + buffer.size());
+    result[0] = 'T';
+    std::memcpy(result.data() + 1, buffer.data(), buffer.size());
+    return std::move(result);
 }
 
 /********************************************************************
@@ -88,7 +101,7 @@ to_bytes() const
 ********************************************************************/
 
 auto Result::
-from_bytes(std::span<u8> span) ->
+from_bytes(std::span<char> span) ->
 std::pair<Result,size_t> {
     size_t consumend_bytes = 0;
 
