@@ -61,10 +61,12 @@ public:
     }
 
     /// Serialization. Converting a Query to bytes.
-    [[nodiscard]] std::vector<char> to_bytes(bool compress = false ) const;
+    [[nodiscard]] std::vector<char> to_bytes() const;
+    [[nodiscard]] std::vector<char> to_gziped_bytes() const;
 
     /// Deserialization. Recreate Query from bytes.
-    static std::pair<Query,size_t> from_bytes(std::span<char> span, bool compress = false);
+    static std::pair<Query,size_t> from_bytes(std::span<char> span);
+    static std::pair<Query,size_t> from_gziped_bytes(std::span<char> span);
 
     bool operator==(Query const& rhs) const {
         if (cmd_ != rhs.cmd_)

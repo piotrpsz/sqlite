@@ -31,6 +31,7 @@
 
 class Result {
     std::vector<Row> data_;
+    static constexpr u8 RESULT_MARKER{'T'};
 public:
     Result() = default;
     ~Result() = default;
@@ -62,10 +63,12 @@ public:
 
 
     /// Serialization. Converting a Field to bytes.
-    [[nodiscard]] auto to_bytes(bool compress = false) const -> std::vector<char>;
+    [[nodiscard]] auto to_bytes() const -> std::vector<char>;
+    [[nodiscard]] auto to_gzip_bytes() const -> std::vector<char>;
 
     /// Deserialization. Recreate Field from bytes.
     static auto from_bytes(std::span<char> span) -> std::pair<Result,size_t>;
+    static auto from_gzip_bytes(std::span<char> span) -> std::pair<Result,size_t>;
 
     auto to_string() const -> std::string;
 

@@ -53,7 +53,7 @@ auto Result
 ********************************************************************/
 
 auto Result::
-to_bytes(bool const compress) const
+to_bytes() const
 -> std::vector<char> {
     std::vector<std::vector<char>> serialized_rows{};
     const u16 rows_count = data_.size();
@@ -66,32 +66,22 @@ to_bytes(bool const compress) const
         serialized_rows.push_back(std::move(sr));
     }
 
+    // Chunk size describes everything that is behind it.
     u32 const chunk_size
         = sizeof(u16)   // rows number
         + rows_size;    // bytes number of sll rows
 
     std::vector<char> buffer{};
-    buffer.reserve(sizeof(u32) + chunk_size);
+    buffer.reserve(sizeof(char) + sizeof(u32) + chunk_size);
 
+    buffer.push_back(RESULT_MARKER);
     std::copy_n(reinterpret_cast<char const*>(&chunk_size), sizeof(u32), std::back_inserter(buffer));
     std::copy_n(reinterpret_cast<char const*>(&rows_count), sizeof(u16), std::back_inserter(buffer));
     std::ranges::for_each(serialized_rows, [&buffer](auto sf) {
         std::copy_n(sf.begin(), sf.size(), std::back_inserter(buffer));
     });
 
-
-    if (compress) {
-        auto const compressed = gzip::compress(buffer);
-        std::vector<char> result(1 + compressed.size());
-        result[0] = 'T';
-        std::memcpy(result.data() + 1, compressed.data(), compressed.size());
-        return std::move(result);
-    }
-
-    std::vector<char> result(1 + buffer.size());
-    result[0] = 'T';
-    std::memcpy(result.data() + 1, buffer.data(), buffer.size());
-    return std::move(result);
+    return std::move(buffer);
 }
 
 /********************************************************************
@@ -103,34 +93,90 @@ to_bytes(bool const compress) const
 auto Result::
 from_bytes(std::span<char> span) ->
 std::pair<Result,size_t> {
-    size_t consumend_bytes = 0;
-
-    if (!span.empty() && span.front() == 'T') {
+    if (!span.empty() && span.front() == RESULT_MARKER) {
         span = span.subspan(1);
-        consumend_bytes = 1;
-        if (auto const chunk_size = shared::from<u32>(span)) {
+        if (auto const nbytes = shared::from<u32>(span)) {
             span = span.subspan(sizeof(u32));
-            consumend_bytes += sizeof(u32);
-            if (span.size() >= *chunk_size) {
-                span = span.first(*chunk_size);
+            if (span.size() >= *nbytes) {
+                span = span.first(*nbytes);
                 if (auto const rows_count = shared::from<u16>(span)) {
                     span = span.subspan(sizeof(u16));
-                    consumend_bytes += sizeof(u16);
-
                     Result result{};
                     for (int i = 0; i < rows_count; ++i) {
                         auto [row, nbytes] = Row::from_bytes(span);
                         result.add(std::move(row));
                         span = span.subspan(nbytes);
-                        consumend_bytes += nbytes;
                     }
-                    return {std::move(result), consumend_bytes};
+                    return {std::move(result), sizeof(char) + sizeof(u32) + *nbytes};
                 }
             }
         }
     }
 
-    return {{}, consumend_bytes};
+    return {{}, 0};
+}
+
+
+auto Result::
+to_gzip_bytes() const
+-> std::vector<char> {
+    std::vector<std::vector<char>> serialized_rows{};
+    const u16 rows_count = data_.size();
+    serialized_rows.reserve(rows_count);
+    size_t rows_size = 0;
+
+    for (const auto& row : data_) {
+        auto sr = row.to_bytes();
+        rows_size += sr.size();
+        serialized_rows.push_back(std::move(sr));
+    }
+
+    std::vector<char> buffer{};
+    buffer.reserve(sizeof(u16) + rows_size);
+    std::copy_n(reinterpret_cast<char const*>(&rows_count), sizeof(u16), std::back_inserter(buffer));
+    std::ranges::for_each(serialized_rows, [&buffer](auto sf) {
+        std::copy_n(sf.begin(), sf.size(), std::back_inserter(buffer));
+    });
+
+    auto const compressed = gzip::compress(buffer);
+    u32 const nbytes = compressed.size();
+    std::vector<char> result{};
+    result.reserve(sizeof(char) + sizeof(u32) + compressed.size());
+    result.push_back(RESULT_MARKER);
+    std::copy_n(reinterpret_cast<char const*>(&nbytes), sizeof(u32), std::back_inserter(result));
+    std::copy_n(compressed.begin(), compressed.size(), std::back_inserter(result));
+    return std::move(result);
+}
+
+auto Result::
+from_gzip_bytes(std::span<char> span) ->
+std::pair<Result,size_t> {
+    if (!span.empty() && span.front() == RESULT_MARKER) {
+        span = span.subspan(1);
+        if (auto const nbytes = shared::from<u32>(span)) {
+            span = span.subspan(sizeof(u32));
+            if (span.size() >= *nbytes) {
+                span = span.first(*nbytes);
+                auto unpacked_data = gzip::decompress(span);
+                span = std::span(unpacked_data.data(), unpacked_data.size());
+                // From now on we are working on unpacked data
+
+                // Number of rows.
+                if (auto const rows_count = shared::from<u16>(span)) {
+                    span = span.subspan(sizeof(u16));
+                    Result result{};
+                    for (int i = 0; i < rows_count; ++i) {
+                        auto [row, nbytes] = Row::from_bytes(span);
+                        result.add(std::move(row));
+                        span = span.subspan(nbytes);
+                    }
+                    return {std::move(result), sizeof(char) + sizeof(u32) + *nbytes};
+                }
+            }
+        }
+    }
+
+    return {{}, 0};
 }
 
 /********************************************************************
