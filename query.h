@@ -34,7 +34,7 @@
 class Query {
     std::string cmd_;
     std::vector<Value> values_;
-    static constexpr u8 QUERY_MARKER{'Q'};
+    static constexpr char QUERY_MARKER{'Q'};
 
 public:
     Query() = default;
@@ -62,11 +62,11 @@ public:
 
     /// Serialization. Converting a Query to bytes.
     [[nodiscard]] std::vector<char> to_bytes() const;
-    [[nodiscard]] std::vector<char> to_gziped_bytes() const;
+    [[nodiscard]] std::vector<char> to_gzip_bytes() const;
 
     /// Deserialization. Recreate Query from bytes.
     static std::pair<Query,size_t> from_bytes(std::span<char> span);
-    static std::pair<Query,size_t> from_gziped_bytes(std::span<char> span);
+    static std::pair<Query,size_t> from_gzip_bytes(std::span<const char> span);
 
     bool operator==(Query const& rhs) const {
         if (cmd_ != rhs.cmd_)

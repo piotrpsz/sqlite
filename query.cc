@@ -76,7 +76,7 @@ to_bytes() const
 }
 
 auto Query::
-to_gziped_bytes() const
+to_gzip_bytes() const
 -> std::vector<char> {
     // In the 'serialized_values' vector we will store the bytes from ALL serialized values.
     std::vector<std::vector<char>> serialized_values{};
@@ -111,7 +111,7 @@ to_gziped_bytes() const
     u32 const nbytes = compressed.size();
     std::vector<char> result{};
     result.reserve(sizeof(u8) + sizeof(u32) + nbytes);
-    result.push_back(QUERY_MARKER | static_cast<char>(0b10000000));
+    result.push_back(static_cast<char>(QUERY_MARKER | 0b1000'0000));
     std::copy_n(reinterpret_cast<char const*>(&nbytes), sizeof(u32), std::back_inserter(result));
     std::copy_n(compressed.data(), compressed.size(), std::back_inserter(result));
     return std::move(result);
@@ -130,8 +130,8 @@ from_bytes(std::span<char> span)
         return {};
 
     // It is possible that the data is packed
-    if (auto const marker = static_cast<unsigned char>(span.front()); (marker & 0b1000'0000) == 0b1000'0000)
-        return from_gziped_bytes(span);
+    if (auto const marker = span.front(); (marker & 0b1000'0000) == 0b1000'0000)
+        return from_gzip_bytes(span);
 
     if (span.front() == QUERY_MARKER) {
         span = span.subspan(1);
@@ -161,44 +161,43 @@ from_bytes(std::span<char> span)
 }
 
 auto Query::
-from_gziped_bytes(std::span<char> span)
+from_gzip_bytes(std::span<const char> span)
 -> std::pair<Query,size_t> {
     if (span.empty())
         return {};
 
-    if (auto const marker = static_cast<unsigned char>(span.front()); (marker & 0b1000'0000) == 0b1000'0000)
-        span.front() = static_cast<char>(marker & ~0b1000'0000);;
+    if (auto const marker = span.front(); (marker & 0b1000'0000) == 0b1000'0000) {
+        if (static_cast<char>(marker & ~0b1000'0000) == QUERY_MARKER) {
+            span = span.subspan(1);
+            if (auto const nbytes = shared::from<u32>(span)) {
+                span = span.subspan(sizeof(u32));
+                if (span.size() >= *nbytes) {
+                    // After the marker and size, there are already compressed data,
+                    // the number of bytes of which is equal to the designated size.
+                    // And only they are of interest to us.
+                    span = span.first(*nbytes);
+                    auto unpacked_data = gzip::decompress(span);
+                    span = std::span(unpacked_data.data(), unpacked_data.size());
+                    // From now on we are working on unpacked data
 
-    if (span.front() == QUERY_MARKER) {
-        span = span.subspan(1);
-        if (auto const nbytes = shared::from<u32>(span)) {
-            span = span.subspan(sizeof(u32));
-            if (span.size() >= *nbytes) {
-                // After the marker and size, there are already compressed data,
-                // the number of bytes of which is equal to the designated size.
-                // And only they are of interest to us.
-                span = span.first(*nbytes);
-                auto unpacked_data = gzip::decompress(span);
-                span = std::span(unpacked_data.data(), unpacked_data.size());
-                // From now on we are working on unpacked data
-
-                // Command text size.
-                if (auto const cmd_size = shared::from<u16>(span)) {
-                    span = span.subspan(sizeof(u16));
-                    // Number of values.
-                    if (auto const values_count = shared::from<u16>(span)) {
+                    // Command text size.
+                    if (auto const cmd_size = shared::from<u16>(span)) {
                         span = span.subspan(sizeof(u16));
-                        // Command.
-                        auto const cmd = std::string{reinterpret_cast<char const*>(span.data()), *cmd_size};
-                        span = span.subspan(*cmd_size);
-                        Query query{cmd};
-                        // Values.
-                        for (int i = 0; i < values_count; ++i) {
-                            auto [v, nbytes] = Value::from_bytes(span);
-                            query.add_arg(std::move(v));
-                            span = span.subspan(nbytes);
+                        // Number of values.
+                        if (auto const values_count = shared::from<u16>(span)) {
+                            span = span.subspan(sizeof(u16));
+                            // Command.
+                            auto const cmd = std::string{reinterpret_cast<char const*>(span.data()), *cmd_size};
+                            span = span.subspan(*cmd_size);
+                            Query query{cmd};
+                            // Values.
+                            for (int i = 0; i < values_count; ++i) {
+                                auto [v, nbytes] = Value::from_bytes(span);
+                                query.add_arg(std::move(v));
+                                span = span.subspan(nbytes);
+                            }
+                            return {std::move(query),  sizeof(char) + sizeof(u32) + *nbytes};
                         }
-                        return {std::move(query),  sizeof(char) + sizeof(u32) + *nbytes};
                     }
                 }
             }

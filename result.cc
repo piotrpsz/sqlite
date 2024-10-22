@@ -93,6 +93,12 @@ to_bytes() const
 auto Result::
 from_bytes(std::span<const char> span) ->
 std::pair<Result,size_t> {
+    if (span.empty())
+        return {};
+
+    if (auto const marker = span.front(); (marker & 0b1000'0000) == 0b1000'0000)
+        return from_gzip_bytes(span);
+
     if (!span.empty() && span.front() == RESULT_MARKER) {
         span = span.subspan(1);
         if (auto const nbytes = shared::from<u32>(span)) {
@@ -113,7 +119,7 @@ std::pair<Result,size_t> {
         }
     }
 
-    return {{}, 0};
+    return {};
 }
 
 
@@ -142,7 +148,7 @@ to_gzip_bytes() const
     u32 const nbytes = compressed.size();
     std::vector<char> result{};
     result.reserve(sizeof(char) + sizeof(u32) + compressed.size());
-    result.push_back(RESULT_MARKER);
+    result.push_back(static_cast<char>(RESULT_MARKER | 0b1000'0000));
     std::copy_n(reinterpret_cast<char const*>(&nbytes), sizeof(u32), std::back_inserter(result));
     std::copy_n(compressed.begin(), compressed.size(), std::back_inserter(result));
     return std::move(result);
@@ -151,32 +157,39 @@ to_gzip_bytes() const
 auto Result::
 from_gzip_bytes(std::span<const char> span) ->
 std::pair<Result,size_t> {
-    if (!span.empty() && span.front() == RESULT_MARKER) {
-        span = span.subspan(1);
-        if (auto const nbytes = shared::from<u32>(span)) {
-            span = span.subspan(sizeof(u32));
-            if (span.size() >= *nbytes) {
-                span = span.first(*nbytes);
-                auto unpacked_data = gzip::decompress(span);
-                span = std::span(unpacked_data.data(), unpacked_data.size());
-                // From now on we are working on unpacked data
+    if (span.empty())
+        return {};
 
-                // Number of rows.
-                if (auto const rows_count = shared::from<u16>(span)) {
-                    span = span.subspan(sizeof(u16));
-                    Result result{};
-                    for (int i = 0; i < rows_count; ++i) {
-                        auto [row, nbytes] = Row::from_bytes(span);
-                        result.add(std::move(row));
-                        span = span.subspan(nbytes);
+    if (auto const marker = span.front(); (marker & 0b1000'0000) == 0b1000'0000) {
+        if (static_cast<char>(marker & ~0b1000'0000) == RESULT_MARKER) {
+            span = span.subspan(1);
+            if (auto const nbytes = shared::from<u32>(span)) {
+                span = span.subspan(sizeof(u32));
+                if (span.size() >= *nbytes) {
+                    // After the marker and size, there are already compressed data,
+                    // the number of bytes of which is equal to the designated size.
+                    // And only they are of interest to us.
+                    span = span.first(*nbytes);
+                    auto unpacked_data = gzip::decompress(span);
+                    span = std::span(unpacked_data.data(), unpacked_data.size());
+                    // From now on we are working on unpacked data
+
+                    // Number of rows.
+                    if (auto const rows_count = shared::from<u16>(span)) {
+                        span = span.subspan(sizeof(u16));
+                        Result result{};
+                        for (int i = 0; i < rows_count; ++i) {
+                            auto [row, nbytes] = Row::from_bytes(span);
+                            result.add(std::move(row));
+                            span = span.subspan(nbytes);
+                        }
+                        return {std::move(result), sizeof(char) + sizeof(u32) + *nbytes};
                     }
-                    return {std::move(result), sizeof(char) + sizeof(u32) + *nbytes};
                 }
             }
         }
     }
-
-    return {{}, 0};
+    return {};
 }
 
 /********************************************************************

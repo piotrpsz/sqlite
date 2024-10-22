@@ -31,7 +31,7 @@
 
 class Result {
     std::vector<Row> data_;
-    static constexpr u8 RESULT_MARKER{'T'};
+    static constexpr char RESULT_MARKER{'T'};
 public:
     Result() = default;
     ~Result() = default;
