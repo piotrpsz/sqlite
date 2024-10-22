@@ -57,7 +57,7 @@ to_bytes() const noexcept
 ********************************************************************/
 
 auto Value::
-from_bytes(std::span<char> span) noexcept
+from_bytes(std::span<const char> span) noexcept
 -> std::pair<Value,size_t> {
     if (!span.empty() && is_marker(span.front())) {
         size_t consumed_bytes = 0;
@@ -76,11 +76,11 @@ from_bytes(std::span<char> span) noexcept
 
                 switch (type) {
                     case 'I': {
-                        auto const v = *reinterpret_cast<i64*>(span.data());
+                        auto const v = *reinterpret_cast<i64 const*>(span.data());
                         return {Value{v}, consumed_bytes};
                     }
                     case 'D': {
-                        auto const v = *reinterpret_cast<f64*>(span.data());
+                        auto const v = *reinterpret_cast<f64 const*>(span.data());
                         return { Value{v}, consumed_bytes};
                     }
                     case 'S': {
@@ -106,7 +106,7 @@ from_bytes(std::span<char> span) noexcept
 *                                                                   *
 ********************************************************************/
 
-std::string Value::serialized_data(std::span<u8> span) noexcept {
+std::string Value::serialized_data(std::span<char> span) noexcept {
     std::string buffer{};
     if (!span.empty() && is_marker(span[0])) {
         auto type = span[0];

@@ -111,9 +111,9 @@ namespace shared {
     }
 
     template<std::integral T>
-    std::optional<T> from(std::span<u8> const span) noexcept {
+    std::optional<T> from(std::span<const char> const span) noexcept {
         if (span.size() >= sizeof(T))
-            return *reinterpret_cast<T*>(span.first(sizeof(T)).data());
+            return *reinterpret_cast<T const*>(span.first(sizeof(T)).data());
         return {};
     }
     template<std::integral T>

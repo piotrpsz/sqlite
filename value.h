@@ -78,11 +78,11 @@ public:
     -> std::vector<char>;
 
     /// Deserialization. Recreate Field from bytes.
-    static auto from_bytes(std::span<char> span) noexcept
+    static auto from_bytes(std::span<const char> span) noexcept
     -> std::pair<Value,size_t>;
 
     /// Serialized data info. Generally for debug.
-    static auto serialized_data(std::span<u8> span) noexcept
+    static auto serialized_data(std::span<char> span) noexcept
     -> std::string;
 
     /// Get integral value without checking.

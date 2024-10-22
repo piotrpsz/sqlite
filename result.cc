@@ -91,7 +91,7 @@ to_bytes() const
 ********************************************************************/
 
 auto Result::
-from_bytes(std::span<char> span) ->
+from_bytes(std::span<const char> span) ->
 std::pair<Result,size_t> {
     if (!span.empty() && span.front() == RESULT_MARKER) {
         span = span.subspan(1);
@@ -149,7 +149,7 @@ to_gzip_bytes() const
 }
 
 auto Result::
-from_gzip_bytes(std::span<char> span) ->
+from_gzip_bytes(std::span<const char> span) ->
 std::pair<Result,size_t> {
     if (!span.empty() && span.front() == RESULT_MARKER) {
         span = span.subspan(1);

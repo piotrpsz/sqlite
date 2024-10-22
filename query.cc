@@ -111,7 +111,7 @@ to_gziped_bytes() const
     u32 const nbytes = compressed.size();
     std::vector<char> result{};
     result.reserve(sizeof(u8) + sizeof(u32) + nbytes);
-    result.push_back(QUERY_MARKER);
+    result.push_back(QUERY_MARKER | static_cast<char>(0b10000000));
     std::copy_n(reinterpret_cast<char const*>(&nbytes), sizeof(u32), std::back_inserter(result));
     std::copy_n(compressed.data(), compressed.size(), std::back_inserter(result));
     return std::move(result);
@@ -126,7 +126,14 @@ to_gziped_bytes() const
 auto Query::
 from_bytes(std::span<char> span)
 -> std::pair<Query,size_t> {
-    if (!span.empty() && span.front() == QUERY_MARKER) {
+    if (span.empty())
+        return {};
+
+    // It is possible that the data is packed
+    if (auto const marker = static_cast<unsigned char>(span.front()); (marker & 0b1000'0000) == 0b1000'0000)
+        return from_gziped_bytes(span);
+
+    if (span.front() == QUERY_MARKER) {
         span = span.subspan(1);
         if (auto const nbytes = shared::from<u32>(span)) {
             span = span.subspan(sizeof(u32));
@@ -156,7 +163,13 @@ from_bytes(std::span<char> span)
 auto Query::
 from_gziped_bytes(std::span<char> span)
 -> std::pair<Query,size_t> {
-    if (!span.empty() && span.front() == QUERY_MARKER) {
+    if (span.empty())
+        return {};
+
+    if (auto const marker = static_cast<unsigned char>(span.front()); (marker & 0b1000'0000) == 0b1000'0000)
+        span.front() = static_cast<char>(marker & ~0b1000'0000);;
+
+    if (span.front() == QUERY_MARKER) {
         span = span.subspan(1);
         if (auto const nbytes = shared::from<u32>(span)) {
             span = span.subspan(sizeof(u32));

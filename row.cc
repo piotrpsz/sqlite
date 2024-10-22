@@ -96,7 +96,7 @@ std::vector<char> {
 ********************************************************************/
 
 auto Row::
-from_bytes(std::span<char> span) ->
+from_bytes(std::span<const char> span) ->
 std::pair<Row,size_t> {
     size_t consumed_bytes = 0;
 

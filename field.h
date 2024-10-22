@@ -64,7 +64,7 @@ public:
     [[nodiscard]] auto to_bytes() const -> std::vector<char>;
 
     /// Deserialization. Recreate Field from bytes.
-    static std::pair<Field,size_t> from_bytes(std::span<char> span);
+    static std::pair<Field,size_t> from_bytes(std::span<const char> span);
 
     /// Serialized data info. Generally for debug.
     static auto serialized_data(std::span<char> span) -> std::string;

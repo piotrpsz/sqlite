@@ -35,7 +35,7 @@ namespace bio = boost::iostreams;
 
 namespace gzip {
     /// Compress data using gzip.
-    static inline auto compress(std::span<char> const plain) {
+    static inline auto compress(std::span<const char> const plain) {
         std::vector<char> buffer{};
 
         bio::filtering_ostream in;
@@ -49,7 +49,7 @@ namespace gzip {
     }
 
     /// Decompress data uzing gzip.
-    static inline std::vector<char> decompress(std::span<char> const compressed) {
+    static inline std::vector<char> decompress(std::span<const char> const compressed) {
         std::vector<char> buffer{};
 
         bio::filtering_ostream in;

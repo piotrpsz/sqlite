@@ -79,7 +79,7 @@ to_bytes() const
 ********************************************************************/
 
 auto Field::
-from_bytes(std::span<char> span)
+from_bytes(std::span<const char> span)
 -> std::pair<Field,size_t> {
     size_t consumed_bytes{0};
 

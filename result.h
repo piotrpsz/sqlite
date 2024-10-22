@@ -67,8 +67,8 @@ public:
     [[nodiscard]] auto to_gzip_bytes() const -> std::vector<char>;
 
     /// Deserialization. Recreate Field from bytes.
-    static auto from_bytes(std::span<char> span) -> std::pair<Result,size_t>;
-    static auto from_gzip_bytes(std::span<char> span) -> std::pair<Result,size_t>;
+    static auto from_bytes(std::span<const char> span) -> std::pair<Result,size_t>;
+    static auto from_gzip_bytes(std::span<const char> span) -> std::pair<Result,size_t>;
 
     auto to_string() const -> std::string;
 
