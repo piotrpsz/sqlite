@@ -26,6 +26,7 @@
 /*------- include files:
 -------------------------------------------------------------------*/
 #include "field.h"
+#include <format>
 
 /********************************************************************
 *                                                                   *
@@ -36,7 +37,7 @@
 auto Field::
 to_string() const -> std::string {
     auto const [name, value] = data_;
-    return fmt::format("{}:[{}]", name, value.to_string());
+    return std::format("{}:[{}]", name, value.to_string());
 }
 
 /********************************************************************
@@ -121,26 +122,26 @@ auto Field::
 serialized_data(std::span<char> span) -> std::string {
     if (!span.empty() && span.front() == 'F') {
         std::string buffer{};
-        buffer.append(fmt::format("0x{:02x} [{}]\n", span[0], static_cast<char>(span[0])));
+        buffer.append(std::format("0x{:02x} [{}]\n", span[0], static_cast<char>(span[0])));
         span = span.subspan(1);
 
         if (auto chunk_size = shared::from<u32>(span)) {
             auto const subspan = span.subspan(0, sizeof(u32));
-            buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(subspan), *chunk_size));
+            buffer.append(std::format("{} [{}]\n", shared::hex_bytes_as_str(subspan), *chunk_size));
             span = span.subspan(sizeof(u32));
 
             if (auto name_size = shared::from<u16>(span)) {
-                buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(span.subspan(0, *name_size)), *name_size));
+                buffer.append(std::format("{} [{}]\n", shared::hex_bytes_as_str(span.subspan(0, *name_size)), *name_size));
                 span = span.subspan(sizeof(u16));
                 if (span.size() >= name_size) {
                     auto const span_name = span.subspan(0, *name_size);
                     auto name = std::string{reinterpret_cast<char const*>(span_name.data()), *name_size};
-                    buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(span_name), name));
+                    buffer.append(std::format("{} [{}]\n", shared::hex_bytes_as_str(span_name), name));
                     span = span.subspan(*name_size);
                     if (span.size() >= (*chunk_size - *name_size - sizeof(u16))) {
                         auto const span_value = span.subspan(0, *chunk_size - *name_size - sizeof(u16));
                         auto&& [value, nbytes] = Value::from_bytes(span_value);
-                        buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(span_value), value.to_string()));
+                        buffer.append(std::format("{} [{}]\n", shared::hex_bytes_as_str(span_value), value.to_string()));
                         return buffer;
                     }
                 }

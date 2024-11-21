@@ -26,6 +26,8 @@
 /*------- include files:
 -------------------------------------------------------------------*/
 #include "row.h"
+#include <format>
+#include <iostream>
 
 auto Row::
 to_string()
@@ -132,21 +134,21 @@ serialized_data(std::span<char> span)
 -> std::string {
     if (span.size() >= sizeof(u8)) {
         std::string buffer{};
-        buffer.append(fmt::format("0x{:02x} [{}]\n", span[0], static_cast<char>(span[0])));
+        buffer.append(std::format("0x{:02x} [{}]\n", span[0], static_cast<char>(span[0])));
         span = span.subspan(1);
         if (span.size() >= sizeof(u32)) {
             // total size
             auto span_total_size = span.subspan(0, sizeof(u32));
             size_t const total_size = *reinterpret_cast<u16*>(span_total_size.data());
-            buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(span_total_size), total_size));
+            buffer.append(std::format("{} [{}]\n", shared::hex_bytes_as_str(span_total_size), total_size));
             span = span.subspan(sizeof(u32));
             if (span.size() >= sizeof(u16)) {
                 // field count
                 auto span_values_count = span.subspan(0, sizeof(u16));
                 size_t const values_count = *reinterpret_cast<u16*>(span_values_count.data());
-                buffer.append(fmt::format("{} [{}]\n", shared::hex_bytes_as_str(span_values_count), values_count));
+                buffer.append(std::format("{} [{}]\n", shared::hex_bytes_as_str(span_values_count), values_count));
                 span = span.subspan(sizeof(u16));
-                fmt::print("---------\n");
+                std::cout << "---------\n" << std::flush;
                 for (size_t i = 0; i < values_count; ++i) {
                     // we take bytes describing the size of the field
                     auto span_size = span.subspan(0, sizeof(u32));
@@ -155,7 +157,7 @@ serialized_data(std::span<char> span)
 
                     auto span_field = span.subspan(0, size);
                     auto [f, n] = Field::from_bytes(span_field);
-                    buffer.append(fmt::format("{} [{}]\n", Field::serialized_data(span.subspan(0, n)), n));
+                    buffer.append(std::format("{} [{}]\n", Field::serialized_data(span.subspan(0, n)), n));
                     span = span.subspan(n);
                 }
             }

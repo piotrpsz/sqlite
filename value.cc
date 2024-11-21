@@ -26,6 +26,7 @@
 /*------- include files:
 -------------------------------------------------------------------*/
 #include "value.h"
+#include <format>
 
 /********************************************************************
 *                                                                   *
@@ -110,11 +111,11 @@ std::string Value::serialized_data(std::span<char> span) noexcept {
     std::string buffer{};
     if (!span.empty() && is_marker(span[0])) {
         auto type = span[0];
-        buffer.append(fmt::format("0x{:02x}  [{}]\n", type, static_cast<char>(type)));
+        buffer.append(std::format("0x{:02x}  [{}]\n", type, static_cast<char>(type)));
         span = span.subspan(1);
 
         if (auto chunk_size = shared::from<u32>(span)) {
-            buffer.append(fmt::format("{}  [{}]\n", shared::hex_bytes_as_str(span.first(sizeof(u32))), *chunk_size));
+            buffer.append(std::format("{}  [{}]\n", shared::hex_bytes_as_str(span.first(sizeof(u32))), *chunk_size));
             span = span.subspan(sizeof(u32));
 
             if (span.size() >= *chunk_size) {
@@ -122,23 +123,23 @@ std::string Value::serialized_data(std::span<char> span) noexcept {
                 switch (type) {
                     case 'I': {
                         auto const v = *reinterpret_cast<i64*>(span.data());
-                        buffer.append(fmt::format("{}  [{}]\n", shared::hex_bytes_as_str(span), v));
+                        buffer.append(std::format("{}  [{}]\n", shared::hex_bytes_as_str(span), v));
                         break;
                     }
                     case 'D': {
                         auto const v = *reinterpret_cast<f64*>(span.data());
-                        buffer.append(fmt::format("{}  [{}]\n", shared::hex_bytes_as_str(span), v));
+                        buffer.append(std::format("{}  [{}]\n", shared::hex_bytes_as_str(span), v));
                         break;
                     }
                     case 'S': {
                         auto const v = std::string{reinterpret_cast<char const*>(span.data()),span.size()};
-                        buffer.append(fmt::format("{}  [{}]\n", shared::hex_bytes_as_str(span), v));
+                        buffer.append(std::format("{}  [{}]\n", shared::hex_bytes_as_str(span), v));
                         break;
 
                     }
                     case 'V': {
                         auto const v = std::vector<u8>{span.begin(), span.end()};
-                        buffer.append(fmt::format("{0}  [{0}]\n", shared::hex_bytes_as_str(span)));
+                        buffer.append(std::format("{0}  [{0}]\n", shared::hex_bytes_as_str(span)));
                         break;
                     }
                     default:
@@ -164,13 +165,13 @@ to_string() const noexcept
         case MONOSTATE:
             return "NULL"s;
         case INTEGER:
-            return fmt::format("i64{{{}}}", value<i64>());
+            return std::format("i64{{{}}}", value<i64>());
         case DOUBLE:
-            return fmt::format("f64{{{}}}", value<f64>());
+            return std::format("f64{{{}}}", value<f64>());
         case STRING:
-            return fmt::format("string{{{}}}", value<std::string>());
+            return std::format("string{{{}}}", value<std::string>());
         case VECTOR: {
-            return fmt::format("blob{{{}}}", shared::hex_bytes_as_str(value<std::vector<u8>>()));
+            return std::format("blob{{{}}}", shared::hex_bytes_as_str(value<std::vector<u8>>()));
         }
         default:
             return "?"s;

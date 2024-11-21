@@ -31,7 +31,8 @@
 #include <string>
 #include <optional>
 #include <charconv>
-#include <fmt/core.h>
+#include <format>
+#include <iostream>
 #include <range/v3/all.hpp>
 
 namespace shared {
@@ -75,14 +76,14 @@ namespace shared {
     /// \return string representation of bytes.
     static inline std::string hex_bytes_as_str(std::span<const u8> const data) noexcept {
         auto const components = data
-                      | vws::transform([](u8 const c) { return fmt::format("0x{:02x}", c); })
+                      | vws::transform([](u8 const c) { return std::format("0x{:02x}", c); })
                       | rng::to<std::vector>();
         return join(components, ',');
     }
 
     static inline std::string hex_bytes_as_str(std::span<const char> const data) noexcept {
         auto const components = data
-                      | vws::transform([](u8 const c) { return fmt::format("0x{:02x}", c); })
+                      | vws::transform([](u8 const c) { return std::format("0x{:02x}", c); })
                       | rng::to<std::vector>();
         return join(components, ',');
     }
@@ -97,9 +98,9 @@ namespace shared {
 
         // Coś poszło nie tak.
         if (ec == std::errc::invalid_argument)
-            fmt::print(stderr, "This is not a number ({}).\n", sv);
+            std::cerr << std::format("This is not a number ({}).\n", sv);
         else if (ec == std::errc::result_out_of_range)
-            fmt::print(stderr, "The number is to big ({}).\n", sv);
+            std::cerr << std::format("The number is to big ({}).\n", sv);
         return {};
     }
 

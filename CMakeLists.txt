@@ -3,7 +3,7 @@ project(sqlite)
 
 set(CMAKE_CXX_STANDARD 20)
 #find_package(Boost REQUIRED)
-find_package(date REQUIRED)
+#find_package(date REQUIRED)
 find_package(range-v3 REQUIRED)
 
 add_library(sqlite STATIC
@@ -27,7 +27,7 @@ add_library(sqlite STATIC
 
 target_link_libraries(sqlite PRIVATE
         sqlite3
-        date::date date::date-tz
+#        date::date date::date-tz
         range-v3::meta range-v3::concepts range-v3::range-v3
 #        libboost_iostreams.a
 #        z
