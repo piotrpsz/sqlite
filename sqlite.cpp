@@ -29,6 +29,8 @@
 #include "logger.h"
 #include "value.h"
 #include "query.h"
+#include <iostream>
+#include <format>
 
 // Close database (if needed and possible).
 bool SQLite::close() noexcept {
@@ -45,17 +47,17 @@ bool SQLite::close() noexcept {
 // Open database with given path.
 bool SQLite::open(std::string const& path, bool const expected_success, bool const read_only) noexcept {
     if (db_) {
-        fmt::print(stderr, "Database is already opened!\n");
+        std::cout << "Database is already opened!\n" << std::flush;
         return false;
     }
     if (path == IN_MEMORY) {
-        fmt::print(stderr, "Database in memory can't be opened (use create).\n");
+        std::cout << "Database in memory can't be opened (use create).\n" << std::flush;
         return false;
     }
 
     auto const flags = read_only ? SQLITE_READONLY : SQLITE_OPEN_READWRITE;
     if (SQLITE_OK == sqlite3_open_v2(path.c_str(), &db_, flags, nullptr)) {
-        fmt::print("database opened: {}\n", path);
+        std::cout << std::format("Database opened: {}\n", path) << std::flush;
         return true;
     }
     if (expected_success) LOG_ERROR(db_);
@@ -66,11 +68,11 @@ bool SQLite::open(std::string const& path, bool const expected_success, bool con
 // Create a new database file.
 bool SQLite::create(std::string const& path, std::function<bool(SQLite const&)> const& fn, bool overwrite) noexcept {
     if (db_) {
-        fmt::print(stderr, "Database is already opened\n");
+        std::cout << "Database is already opened\n" << std::flush;
         return {};
     }
     if (!fn) {
-        fmt::print(stderr, "Operations to be performed on created database were not specified\n");
+        std::cout << "Operations to be performed on created database were not specified\n" << std::flush;
         return {};
     }
 
@@ -81,20 +83,20 @@ bool SQLite::create(std::string const& path, std::function<bool(SQLite const&)> 
         if (fs::exists(path, err)) {
             if (overwrite) { // is this what the user wants?
                 if (!fs::remove(path)) {
-                    fmt::print(stderr, "database file could not be deleted\n");
+                    std::cerr << "database file could not be deleted\n" << std::flush;
                     return false;
                 }
             }
         }
         else if (err)
-            fmt::print(stderr, "database already exist {}\n", err.message());
+            std::cerr << std::format("database already exist {}\n", err.message()) << std::flush;
     }
 
     constexpr auto flags = SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE;
     if (SQLITE_OK == sqlite3_open_v2(path.c_str(), &db_, flags, nullptr)) {
         if (!fn(*this))
             return false;
-        fmt::print("The database created successfully: {}\n", path);
+        std::cout << std::format("The database created successfully: {}\n", path) << std::flush;
         return true;
     }
     LOG_ERROR(db_);

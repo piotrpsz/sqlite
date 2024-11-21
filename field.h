@@ -58,6 +58,15 @@ public:
         return data_.second;
     }
 
+    template<typename T>
+    [[nodiscard]] T value() const noexcept {
+        return data_.second.value<T>();
+    }
+    template<typename T>
+    [[nodiscard]] std::optional<T> value_if() const noexcept {
+        return data_.second.value_if<T>();
+    }
+
     [[nodiscard]] auto to_string() const -> std::string;
 
     /// Serialization. Converting a Field to bytes.

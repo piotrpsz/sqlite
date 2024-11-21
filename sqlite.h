@@ -44,7 +44,7 @@ public:
     static inline Str IN_MEMORY = ":memory:";
 
     /// Implemented as singleton
-    static SQLite& instance() noexcept {
+    static SQLite& self() noexcept {
         static auto db = SQLite{};
         return db;
     }
