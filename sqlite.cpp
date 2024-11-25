@@ -56,10 +56,9 @@ bool SQLite::open(std::string const& path, bool const expected_success, bool con
     }
 
     auto const flags = read_only ? SQLITE_READONLY : SQLITE_OPEN_READWRITE;
-    if (SQLITE_OK == sqlite3_open_v2(path.c_str(), &db_, flags, nullptr)) {
-        std::cout << std::format("Database opened: {}\n", path) << std::flush;
+    if (SQLITE_OK == sqlite3_open_v2(path.c_str(), &db_, flags, nullptr))
         return true;
-    }
+
     if (expected_success) LOG_ERROR(db_);
     db_ = nullptr;
     return {};
@@ -93,12 +92,9 @@ bool SQLite::create(std::string const& path, std::function<bool(SQLite const&)> 
     }
 
     constexpr auto flags = SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE;
-    if (SQLITE_OK == sqlite3_open_v2(path.c_str(), &db_, flags, nullptr)) {
-        if (!fn(*this))
-            return false;
-        std::cout << std::format("The database created successfully: {}\n", path) << std::flush;
-        return true;
-    }
+    if (SQLITE_OK == sqlite3_open_v2(path.c_str(), &db_, flags, nullptr))
+        return fn(*this);
+
     LOG_ERROR(db_);
     return {};
 }
